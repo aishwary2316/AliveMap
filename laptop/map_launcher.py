@@ -8,6 +8,7 @@ from tkinter import ttk
 
 from .lab import LabWorker
 from .map_canvas import MapCanvas, LABELS
+from .route_minimap import RouteMiniMap
 from routing_core.maps import read_json
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,13 @@ GROUPS = {"Delhi Urban": ["delhi_urban"], "Gujarat Coast": ["gujarat_coastal"],
           "Manipur Hills": ["manipur_mantripukhri", "manipur_mayangkhang"]}
 DEMOS = {"Delhi congestion": "delhi_urban", "Gujarat flood": "gujarat_coastal",
          "Mantripukhri landslide": "manipur_mantripukhri", "Mayangkhang closure": "manipur_mayangkhang"}
+INCIDENTS = {"Congestion": "congestion", "Flood (0.25 m)": "flood", "Landslide / road closure": "landslide"}
+
+
+def clock_text(seconds):
+    hours, remainder = divmod(max(0, seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{int(hours):02d}:{int(minutes):02d}:{seconds:04.1f}"
 
 
 def available_packages():
@@ -38,6 +46,11 @@ class MapLauncher:
         self.region, self.scenario = tk.StringVar(), tk.StringVar()
         self.mode, self.speed, self.layer = tk.StringVar(value="Local demo (no SSH)"), tk.StringVar(value="20x"), tk.StringVar(value="Streets")
         self.sumo_gui = tk.BooleanVar(value=False)
+        self.incident = tk.StringVar(value="Congestion")
+        self.pause_on_change = tk.BooleanVar(value=True)
+        self.clock = tk.StringVar(value="SIM 00:00:00.0   |   WALL 00:00:00.0")
+        self.comparison = tk.StringVar(value="Compare the same seeded trips with and without an incident.")
+        self.wall_started, self.completed_runs = None, {}
         self.status = tk.StringVar(value="Ready. Click a guided demo below to begin.")
         self.story = tk.StringVar(value="Real OSM roads. SUMO moves the vehicles; agents compute their own routes. Incidents are synthetic.")
         self.vehicle_detail = tk.StringVar(value="Track Blue, Orange or Green to inspect its actual position and intended path.")
@@ -61,35 +74,46 @@ class MapLauncher:
         self.map_box = self.combo(controls, "Map", self.map, list(GROUPS))
         self.region_box = self.combo(controls, "Subregion", self.region, [])
         self.scenario_box = self.combo(controls, "Scenario", self.scenario, [])
+        self.scenario_box.master.pack_forget()
+        self.combo(controls, "Incident", self.incident, list(INCIDENTS))
         self.map_box.bind("<<ComboboxSelected>>", lambda e: self.select_map())
         self.region_box.bind("<<ComboboxSelected>>", lambda e: self.select_region())
         self.combo(controls, "MEC", self.mode, ["Local demo (no SSH)", "Physical MEC (SSH)"])
         ttk.Checkbutton(controls, text="Also open native SUMO window", variable=self.sumo_gui).pack(anchor="w", pady=3)
-        self.button_row(controls, [("Load / Start", self.load), ("Pause", lambda: self.send("pause")), ("Resume", lambda: self.send("play"))])
+        self.button_row(controls, [("Run without incident", lambda: self.load("none")), ("Run with incident", self.load)])
+        self.button_row(controls, [("Pause", lambda: self.send("pause")), ("Resume", lambda: self.send("play"))])
         self.button_row(controls, [("Step", lambda: self.send("step")), ("Reset", lambda: self.send("reset")), ("Reconnect", lambda: self.send("refresh"))])
+        ttk.Checkbutton(controls, text="Pause to inspect each route change", variable=self.pause_on_change,
+                        command=lambda: self.worker.commands.put(("review_mode", self.pause_on_change.get()))).pack(anchor="w")
         box = self.combo(controls, "Time speed", self.speed, ["1x", "2x", "5x", "10x", "20x", "50x", "100x"])
         box.bind("<<ComboboxSelected>>", lambda e: self.set_speed())
         ttk.Label(controls, text="Follow vehicle + intended route", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(8, 2))
         self.button_row(controls, [(label, lambda n=name: self.track(n)) for name, label in LABELS.items()])
         self.button_row(controls, [("All routes / overview", self.overview), ("+", lambda: self.canvas.change_zoom(1)), ("−", lambda: self.canvas.change_zoom(-1))])
+        ttk.Label(view, textvariable=self.clock, font=("Segoe UI", 17, "bold")).pack(anchor="w", pady=3)
+        ttk.Label(view, textvariable=self.comparison, wraplength=850).pack(anchor="w")
+        ttk.Label(view, textvariable=self.status, wraplength=850).pack(anchor="w", pady=3)
         self.canvas = MapCanvas(view, status=self.tile_status.set)
         self.canvas.pack(fill="both", expand=True)
+        self.minimap = RouteMiniMap(self.canvas)
+        self.minimap.place(x=12, rely=1, y=-60, anchor="sw", width=340, height=220)
         box = self.combo(controls, "Map layer", self.layer, list(self.canvas.sources))
         box.bind("<<ComboboxSelected>>", lambda e: self.canvas.set_source(self.layer.get()))
-        self.button_row(controls, [("Incident", lambda: self.send("report", "warning")), ("Close", lambda: self.send("report", "closed")), ("Clear", lambda: self.send("report", "clear"))])
-        for variable in (self.status, self.story):
+        self.button_row(controls, [("Apply selected", lambda: self.send("report", INCIDENTS[self.incident.get()])), ("Clear incident", lambda: self.send("report", "clear"))])
+        for variable in (self.story,):
             ttk.Label(controls, textvariable=variable, wraplength=300, justify="left").pack(anchor="w", pady=8)
         ttk.Label(view, textvariable=self.tile_status).pack(anchor="w", pady=3)
         ttk.Label(view, textvariable=self.vehicle_detail, wraplength=850).pack(anchor="w", pady=3)
-        self.profile = tk.Canvas(view, height=100, background="#f7fafc", highlightthickness=0)
+        self.profile = tk.Canvas(view, height=85, background="#f7fafc", highlightthickness=0)
         self.profile.pack(fill="x")
-        self.history = tk.Text(view, height=5, wrap="word", font=("Segoe UI", 9), background="#f1f5f9", relief="flat", state="disabled")
+        self.history = tk.Text(view, height=4, wrap="word", font=("Segoe UI", 9), background="#f1f5f9", relief="flat", state="disabled")
         self.history.pack(fill="x", pady=4)
         self.select_map()
         self.worker.start()
         self.set_speed()
         root.protocol("WM_DELETE_WINDOW", self.close)
         root.after(80, self.poll)
+        root.after(100, self.tick_clock)
 
     def combo(self, frame, label, variable, values):
         row = ttk.Frame(frame)
@@ -116,6 +140,7 @@ class MapLauncher:
         choices = []
         if path:
             manifest = read_json(path/"manifest.json")
+            self.incident.set(next(label for label, kind in INCIDENTS.items() if kind == manifest["demonstration"]))
             if (path/manifest["scenario"]).is_file():
                 choices = [read_json(path/manifest["scenario"])["scenario_id"]]
         self.scenario_box["values"] = choices
@@ -128,19 +153,41 @@ class MapLauncher:
         self.select_region()
         self.load()
 
-    def load(self):
+    def load(self, incident_kind=None):
         path = self.packages.get(self.region.get())
         if not path or self.scenario.get().startswith("Package needs"):
             self.status.set(f"Build this map first: python -m geospatial.build {self.region.get()}")
             return
-        self.status.set("Loading a fresh guided experiment…")
-        self.story.set("Blue and Orange have individual routing profiles. Green demonstrates an unaffected trip. Watch the incident and their decisions.")
-        options = {"mec_mode": "local" if self.mode.get().startswith("Local") else "physical", "gui": self.sumo_gui.get()}
+        incident_kind = incident_kind or INCIDENTS[self.incident.get()]
+        self.status.set("Loading identical seeded trips with "+("no incident" if incident_kind == "none" else incident_kind+" at t=20s"))
+        self.story.set("No automatic incident in this run. Apply one manually whenever you want." if incident_kind == "none" else
+                       "Incident at t=20s, held until Clear. The overview retains old dashed paths; routing decisions pause for inspection.")
+        options = {"mec_mode": "local" if self.mode.get().startswith("Local") else "physical", "gui": self.sumo_gui.get(),
+                   "incident_kind": incident_kind, "incident_at": 20, "pause_on_change": self.pause_on_change.get()}
         self.worker.commands.put(("load", (str(path), None, options)))
         self.set_speed()
 
     def set_speed(self):
         self.worker.commands.put(("speed", float(self.speed.get().rstrip("x"))))
+
+    def tick_clock(self):
+        if self.closing:
+            return
+        elapsed = time.monotonic()-self.wall_started if self.wall_started else 0
+        sim = self.frame["time"] if self.frame else 0
+        paused = "  PAUSED" if self.frame and not self.frame["playing"] else ""
+        self.clock.set(f"SIM {clock_text(sim)}   |   WALL {clock_text(elapsed)}{paused}")
+        self.root.after(100, self.tick_clock)
+
+    def update_comparison(self, frame):
+        key = frame["map_id"]
+        kind = frame.get("comparison_condition", "legacy")
+        if frame["complete"]:
+            self.completed_runs[(key, kind)] = {"counts": frame["reroute_counts"].copy(), "arrivals": frame["arrival_times"].copy()}
+        clear = self.completed_runs.get((key, "none"))
+        text = "Without incident: "+("not run yet" if not clear else " / ".join(f"{LABELS[name]} {clock_text(t)}" for name, t in clear["arrivals"].items()))
+        counts = " / ".join(f"{LABELS[name]} {count}" for name, count in frame["reroute_counts"].items())
+        self.comparison.set(text+f"\nCurrent: {kind} · actual reroutes: {counts}"+ (" · no feasible route: "+", ".join(LABELS[n] for n in frame["blocked"]) if frame["blocked"] else ""))
 
     def send(self, action, value=None):
         self.worker.commands.put((action, value, self.epoch))
@@ -196,7 +243,7 @@ class MapLauncher:
             while True:
                 update = self.worker.updates.get_nowait()
                 kind = update["kind"]
-                if kind in ("ready", "report", "decision", "snapshot", "error", "finished") and update.get("message"):
+                if kind in ("ready", "report", "decision", "snapshot", "error", "finished", "route_review") and update.get("message"):
                     self.history.configure(state="normal")
                     self.history.insert("end", f"t={update.get('sim', 0):.1f}s · {update['message']}\n")
                     self.history.see("end")
@@ -205,7 +252,9 @@ class MapLauncher:
                     self.frame = None
                     self.provider, self.scenario_data = update["provider"], update["scenario"]
                     self.canvas.set_map(self.provider, self.scenario_data)
+                    self.minimap.set_map(self.provider)
                     self.rate_sample = None
+                    self.wall_started = time.monotonic()
                     self.history.configure(state="normal")
                     self.history.delete("1.0", "end")
                     self.history.configure(state="disabled")
@@ -217,10 +266,12 @@ class MapLauncher:
                         rate = f" · measured {(update['time']-self.rate_sample[1])/(now-self.rate_sample[0]):.1f}x"
                     if not self.rate_sample or now-self.rate_sample[0] >= 2:
                         self.rate_sample = (now, update["time"])
-                    self.status.set(f"{update['map_id']}\nt={update['time']:.1f}s · {'Running' if update['playing'] else 'Paused'} · target {update['requested_speed']:g}x{rate}\n{backend} · {'reachable' if update['healthy'] else 'error'}\n{update['state']} · {len(update['vehicles'])} active / {len(update['arrived'])} arrived")
+                    self.status.set(f"{update['map_id']} · {'Running' if update['playing'] else 'Paused'} · target {update['requested_speed']:g}x{rate} · {backend} · {update['state']} · {len(update['vehicles'])} active / {len(update['arrived'])} arrived")
                     if update.get("last_error"):
                         self.story.set("Paused: "+update["last_error"])
                     self.canvas.update_frame(update)
+                    self.minimap.update_frame(update)
+                    self.update_comparison(update)
                     self.show_vehicle()
                 elif kind == "report":
                     self.story.set(update["message"]+"\nEach vehicle evaluates that same semantic fact independently.")
@@ -228,7 +279,7 @@ class MapLauncher:
                     self.story.set(update["message"])
                 elif kind == "error":
                     self.status.set("Paused - "+update["message"])
-                elif kind in ("loading", "finished"):
+                elif kind in ("loading", "finished", "route_review"):
                     self.story.set(update["message"])
                 elif kind == "stopped" and self.closing:
                     self.canvas.close()

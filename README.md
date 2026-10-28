@@ -15,6 +15,13 @@ explicit **Local demo (no SSH)** mode; choose **Physical MEC (SSH)** for real-se
 messaging. SUMO runs the actual simulation behind the viewer; its own window is
 optional. [Viewer controls and satellite setup](docs/map-viewer.md).
 
+Use **Run without incident** and **Run with incident** to compare the same seeded
+trips. Choose congestion, flood or closure; the selected incident starts at 20
+simulated seconds and stays until **Clear incident**. A prominent simulation/wall
+clock and a racing-style inset retain solid current paths and dashed old paths.
+The default **Pause to inspect each route change** stops at a real routing decision;
+press **Resume** to watch the vehicle drive the computed detour.
+
 See the [Windows map-system runbook](docs/map-system.md) and
 [map-stage verification](evidence/maps/verification.json). Four offline packages
 were built locally from OSM, Copernicus GLO-30 and Sentinel-2. Heavy assets are

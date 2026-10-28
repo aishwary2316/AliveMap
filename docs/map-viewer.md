@@ -6,13 +6,65 @@ still drives the experiment; the map does not animate invented positions.
 
 ## Play a guided demonstration
 
+### Compare without and with an incident
+
+1. Choose a map/subregion and click **Run without incident**. This uses the same
+   trips, profiles and seed with no automatic hazard reports. Let it finish to
+   record the reference arrival times in the comparison line above the map.
+2. Choose **Congestion**, **Flood (0.25 m)** or **Landslide / road closure**, then
+   click **Run with incident**. A fresh experiment uses identical seeded trips.
+   The chosen incident is reported at **20 simulated seconds** and remains active
+   until you explicitly click **Clear incident**; there is no automatic escalation
+   into another incident type or automatic 100-second clearance in these runs.
+3. **Pause to inspect each route change** is on by default. The controller pauses
+   when a real new route or no-feasible-route decision occurs. Inspect the inset,
+   route counter and event log, then press **Resume** to drive the new route.
+   Uncheck it for continuous playback; the setting also works during a run.
+4. **Apply selected** injects the selected incident immediately into the current
+   run. A reference run that receives a manual incident is relabelled `manual:…`
+   and cannot be recorded as the no-incident baseline. Clear removes this run's
+   incident; independent vehicles recompute their routes again.
+
+The comparison retains completed reference times within the current application
+session. Run changes create new UUIDs and never mix remote hazard records. A
+profile may retain its route if that is still cheapest; a closure may leave no
+feasible route. Such a stop is displayed separately and is **not** counted as a
+successful reroute. Changing a past road after a vehicle has passed it does not
+force a fictional detour.
+
+The large **SIM** clock displays actual elapsed SUMO time, including half-second
+steps. **WALL** is real elapsed time since the scenario loaded, including pauses.
+During a pause SIM freezes while WALL continues. Requested and measured playback
+rates remain distinct. Reset creates the same selected case paused; Resume still
+arms its scheduled incident. The older command-line acceptance runs retain their
+original timeline unless explicitly configured otherwise.
+
+### Route inset
+
+The box in the map's bottom-left corner is a fixed network overview:
+
+- Light grey: actual passenger-accessible canonical OSM/SUMO road geometry.
+- Solid vehicle color: the current planned trip and the roads already driven.
+- Dashed vehicle color: earlier plans retained at actual semantic route changes.
+- Dots: live vehicle positions; red square: the semantic incident location.
+- `STOP`: no feasible route. Its old plan remains dashed; it is not displayed as
+  a valid new intended route while the vehicle is stopped.
+
+The frame stays fixed while the main view follows a vehicle. It expands only if
+a computed detour leaves its bounds. Double-click to enlarge/shrink the inset.
+Shared solid routes have small drawing offsets so vehicle colors do not hide one
+another. Old dashes remain above solids where an old path shares a road with
+another vehicle's current path. These are display styles, not changed geography.
+
+### One-click map presets
+
 Click one of the four **Play guided demo** buttons:
 
 - Delhi congestion: same semantic traffic fact, different vehicle cost policies.
 - Gujarat flood: different vehicle water-depth tolerances.
 - Mantripukhri landslide: a real-road closure and computed detour.
 - Mayangkhang closure: a corridor with no feasible detour; clear the incident to
-  let the stopped vehicle proceed. The automatic timeline also clears it.
+  let the stopped vehicle proceed.
 
 Each button uses its existing validated map/scenario, creates a fresh epoch,
 spawns the fleet, starts playback and follows Blue at street scale. The narration

@@ -1,0 +1,54 @@
+{
+  "recorded_at": "2026-10-28T21:05:13.541400+00:00",
+  "tests_passed": 48,
+  "backend": "reviewed local FastAPI API + actual native SUMO; not physical MEC evidence",
+  "setup": "Identical Delhi map, seed 42, OD and vehicle profiles. None vs congestion at t=20s held until manually cleared.",
+  "tripinfo": {
+    "none": {
+      "unaffected": {
+        "arrival_s": 225.5,
+        "duration_s": 225.5,
+        "driven_length_m": 4082.7
+      },
+      "standard": {
+        "arrival_s": 441.5,
+        "duration_s": 439.0,
+        "driven_length_m": 6985.01
+      },
+      "cautious": {
+        "arrival_s": 451.0,
+        "duration_s": 451.0,
+        "driven_length_m": 6983.61
+      },
+      "experiment_id": "f694711e-21a4-4476-9c3c-80def17c9a2e"
+    },
+    "congestion": {
+      "unaffected": {
+        "arrival_s": 226.5,
+        "duration_s": 226.5,
+        "driven_length_m": 4082.7
+      },
+      "standard": {
+        "arrival_s": 441.5,
+        "duration_s": 439.0,
+        "driven_length_m": 6985.01
+      },
+      "cautious": {
+        "arrival_s": 537.0,
+        "duration_s": 537.0,
+        "driven_length_m": 7514.99
+      },
+      "experiment_id": "fb416454-29d6-49e5-9ac7-bad8e0ad5dc1"
+    }
+  },
+  "assertions": {
+    "same_initial_routes": true,
+    "no_incident_no_reports_or_reroutes": true,
+    "blue_avoided_affected_road_only_with_incident": true,
+    "orange_drove_affected_road_in_congestion_case": true,
+    "retained_old_plan_equals_original_blue_plan": true,
+    "pause_at_20s_on_real_change_and_resume_works": true,
+    "no_feasible_route_exposed_as_stop_not_reroute": true,
+    "manual_incident_relabels_reference_run": true
+  }
+}

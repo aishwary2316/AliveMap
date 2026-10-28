@@ -1,6 +1,7 @@
 """Real-map scenario orchestration, sharing the existing live-session event log."""
 import json
 import math
+from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
@@ -18,6 +19,15 @@ class GeoSession(LiveSession):
         self.provider = PackageMapProvider(args.map_package)
         self.scenario = read_json(getattr(args, "scenario", None) or self.provider.path/self.provider.manifest["scenario"])
         validate_scenario(self.provider, self.scenario)
+        self.scenario = deepcopy(self.scenario)
+        self.incident_kind = getattr(args, "incident_kind", None)
+        self.run_condition, self.reported_kinds = self.incident_kind or "legacy", set()
+        if self.incident_kind is not None:
+            if self.incident_kind not in ("none", "congestion", "flood", "landslide"):
+                raise ValueError("Unknown incident selection")
+            # Comparison runs hold the selected incident until explicit clearance.
+            self.scenario["events"] = [] if self.incident_kind == "none" else [
+                {"sim_time_s": float(getattr(args, "incident_at", 20)), "kind": self.incident_kind}]
         self.fleet = self.scenario["vehicles"]
         self.run_id = str(uuid4())
         self.network_id = self.provider.manifest["map_id"]
@@ -29,6 +39,8 @@ class GeoSession(LiveSession):
         self.state, self.version, self.mapping = "clear", -1, []
         self.applied, self.decisions, self.arrived = {}, {}, set()
         self.facts, self.baseline, self.event_version = [], {}, 0
+        self.route_history, self.planned_routes, self.driven_edges = {}, {}, {name: [] for name in self.fleet}
+        self.reroute_counts, self.blocked, self.arrival_times = {name: 0 for name in self.fleet}, set(), {}
         self.hazard_edge = self.scenario["hazard"]["anchor_edge"]
         self.position = None
         self.agents = {name: VehicleAgent(self.provider, PROFILES[vehicle["profile"]]) for name, vehicle in self.fleet.items()}
@@ -42,6 +54,8 @@ class GeoSession(LiveSession):
                 if route is None:
                     raise ValueError("No feasible initial route")
                 self.baseline[name] = route
+                self.planned_routes[name] = list(route)
+                self.route_history[name] = []
                 color = COLORS[name].lstrip("#")
                 self.adapter.spawn(name, route, tuple(int(color[i:i+2], 16) for i in (0, 2, 4)))
             self.adapter.step()
@@ -88,6 +102,20 @@ class GeoSession(LiveSession):
             if math.dist(xy, state["position"]) > 0.05:
                 raise ValueError("TraCI/map geographic conversion differs by more than 5 cm")
             route, cost = self.agents[name].route(state["edge"], self.fleet[name]["destination"], self.facts)
+            changed = route != state["route"]
+            if self.version > 0 and changed:
+                self.route_history[name].append({"sim_time": self.sim_time, "version": self.version, "reason": self.state,
+                                                 "old": list(self.planned_routes[name]), "new": None if route is None else list(route)})
+                if route is not None:
+                    self.reroute_counts[name] += 1
+            if route is None:
+                self.blocked.add(name)
+            else:
+                self.blocked.discard(name)
+                prefix = list(self.driven_edges[name])
+                if prefix and prefix[-1] == route[0]:
+                    prefix.pop()
+                self.planned_routes[name] = prefix+list(route)
             self.adapter.apply_route(name, route)
             if self.args.gui:
                 pid = "computed-route-"+name
@@ -105,7 +133,12 @@ class GeoSession(LiveSession):
                         cost=None if route is None else cost, message=message)
 
     def report(self, kind):
-        kind = {"warning": self.scenario["hazard"]["kind"], "closed": "landslide"}.get(kind, kind)
+        kind = {"warning": self.incident_kind if self.incident_kind not in (None, "none") else self.scenario["hazard"]["kind"], "closed": "landslide"}.get(kind, kind)
+        if kind != "clear":
+            self.reported_kinds.add(kind)
+            if self.incident_kind is not None:
+                self.run_condition = ("mixed:"+"+".join(sorted(self.reported_kinds)) if len(self.reported_kinds) > 1 else
+                                      kind if kind == self.incident_kind else "manual:"+kind)
         self.event_version += 1
         fact = observation(self.provider, self.scenario, self.run_id, self.event_version, kind)
         payload, response = self.client.report_fact(fact)
@@ -115,18 +148,33 @@ class GeoSession(LiveSession):
         self.refresh()
 
     def step(self):
+        for name in self.connection.vehicle.getIDList():
+            if name in self.fleet:
+                edge = self.connection.vehicle.getRoadID(name)
+                if not edge.startswith(":") and (not self.driven_edges[name] or self.driven_edges[name][-1] != edge):
+                    self.driven_edges[name].append(edge)
         self.adapter.step()
-        self.arrived.update(set(self.connection.simulation.getArrivedIDList()) & set(self.fleet))
+        newly_arrived = set(self.connection.simulation.getArrivedIDList()) & set(self.fleet)
+        self.arrived.update(newly_arrived)
+        self.arrival_times.update({name: self.sim_time for name in newly_arrived})
         self.plan()
 
     def frame(self):
         vehicles = {name: self.adapter.vehicle_state(name) for name in self.connection.vehicle.getIDList() if name in self.fleet}
+        for name in self.blocked & vehicles.keys():
+            vehicles[name]["route"] = []  # A stopped vehicle has no currently feasible intended route.
+            vehicles[name]["blocked"] = True
         return {"time": self.sim_time, "state": self.state, "version": self.version, "run_id": self.run_id,
                 "map_id": self.network_id, "scenario_id": self.scenario["scenario_id"], "vehicles": vehicles,
                 "arrived": sorted(self.arrived), "decisions": self.decisions.copy(), "mapping": self.mapping,
                 "position": None, "hazard_edge": self.hazard_edge, "complete": self.complete,
                 "vehicle_status": {name: "arrived" if name in self.arrived else "active" if name in vehicles else "queued" for name in self.fleet},
-                "facts": [{"kind": fact.kind, "geometry": fact.geometry} for fact in self.facts]}
+                "facts": [{"kind": fact.kind, "geometry": fact.geometry} for fact in self.facts],
+                "baseline_routes": self.baseline, "planned_routes": {name: list(route) for name, route in self.planned_routes.items()},
+                "route_history": deepcopy(self.route_history), "reroute_counts": self.reroute_counts.copy(),
+                "blocked": sorted(self.blocked), "driven_edges": {name: list(route) for name, route in self.driven_edges.items()}, "arrival_times": self.arrival_times.copy(),
+                "incident_kind": self.incident_kind, "comparison_condition": self.run_condition,
+                "incident_schedule": self.scenario["events"]}
 
     def close(self):
         if self.client.attempted_report and self.state != "clear":

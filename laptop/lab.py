@@ -26,6 +26,7 @@ class LabWorker(threading.Thread):
         self.last_poll = 0
         self.last_error = None
         self.speed, self.step_batch = 2.0, 1
+        self.reviewed_changes = 0
 
     def emit(self, kind, **data):
         self.updates.put({"kind": kind, **data})
@@ -49,10 +50,22 @@ class LabWorker(threading.Thread):
             self.emit("map_loaded", provider=self.session.provider, scenario=self.session.scenario)
         else:
             self.session = LiveSession(self.args, self.emit)
-        self.healthy, self.automatic, self.phase = True, automatic, 0
+        armed = automatic or getattr(self.args, "incident_kind", None) not in (None, "none")
+        self.healthy, self.automatic, self.phase = True, armed, 0
+        self.reviewed_changes = 0
         self.last_error = None
         self.playing = automatic
         self.last_poll = time.monotonic()
+
+    def review_route_changes(self):
+        if not self.session or not hasattr(self.session, "route_history"):
+            return
+        changes = sum(len(records) for records in self.session.route_history.values())
+        if changes > self.reviewed_changes and getattr(self.args, "pause_on_change", False):
+            self.playing = False
+            self.emit("route_review", sim=self.session.sim_time,
+                      message="Paused to inspect the routing decision. Solid = current route; dashed = old route. Press Resume to drive it.")
+        self.reviewed_changes = changes
 
     def publish(self):
         if self.session:
@@ -98,6 +111,8 @@ class LabWorker(threading.Thread):
                         self.speed = max(0.5, min(100, float(value)))
                         self.step_batch = max(1, math.ceil(self.speed/20))
                         self.delay = 0.5*self.step_batch/self.speed
+                    elif action == "review_mode":
+                        self.args.pause_on_change = bool(value)
                     elif action == "pause":
                         self.playing = False
                     elif self.session:
@@ -127,12 +142,16 @@ class LabWorker(threading.Thread):
                                 if self.automatic and self.phase < len(timeline) and self.session.sim_time >= timeline[self.phase]["sim_time_s"]:
                                     self.session.report(timeline[self.phase]["kind"])
                                     self.phase += 1
+                                self.review_route_changes()
+                                if not self.playing and action == "tick":
+                                    break
                             if time.monotonic() - self.last_poll >= 1:
                                 self.session.refresh()
                                 self.last_poll = time.monotonic()
                             if self.session.complete:
                                 self.playing = False
                                 self.emit("finished", sim=self.session.sim_time, message="All three vehicles arrived. Reset to explore again.")
+                    self.review_route_changes()
                     self.publish()
                 except Exception as exc:
                     self.playing, self.healthy = False, False

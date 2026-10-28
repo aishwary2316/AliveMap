@@ -10,10 +10,14 @@ from routing_core.agents import Observation, PROFILES, VehicleAgent
 
 def observation(provider, scenario, experiment_id, version=1, kind=None):
     now = datetime.now(timezone.utc)
+    selected = kind or scenario["hazard"]["kind"]
+    facts = {"congestion": {"traffic_speed_ratio": 0.08}, "flood": {"water_depth_m": 0.25}}.get(selected, {})
+    if selected == scenario["hazard"]["kind"]:
+        facts = dict(scenario["hazard"]["facts"])
     return Observation(experiment_id=experiment_id, map_id=provider.manifest["map_id"], event_version=version,
-                       kind=kind or scenario["hazard"]["kind"], geometry=scenario["hazard"]["geometry"],
+                       kind=selected, geometry=scenario["hazard"]["geometry"],
                        observed_at=now.isoformat(), expires_at=(now+timedelta(seconds=scenario.get("ttl_seconds", 1800))).isoformat(),
-                       source_type="synthetic_scenario", facts=scenario["hazard"]["facts"]).validate()
+                       source_type="synthetic_scenario", facts=facts).validate()
 
 
 def create_scenario(provider, kind):
