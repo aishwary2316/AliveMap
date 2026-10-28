@@ -172,7 +172,11 @@ curl.exe --fail http://127.0.0.1:18766/health
 .\.venv\Scripts\python.exe -m laptop.controller --mec-url http://127.0.0.1:18765 --semantics-url http://127.0.0.1:18766/semantics --mode physical-mec --output runs/physical-with-view
 ```
 
-Closing only the new view's window stops the extension. The old API and its state
-continue running. Persistent service management can follow after this foreground
+Keep both SSH windows open for testing. To stop the view, identify its listener on
+the MEC with `ss -ltnp 'sport = :8766'`, inspect that PID's command with
+`ps -p VIEW_PID -o args=`, and send `kill -TERM VIEW_PID` only after confirming it
+is the new `semantic_view:create_app` process. Do not stop the old 8765 process.
+Disconnecting a noninteractive SSH client is not used as a shutdown guarantee.
+Persistent service management can follow after this foreground
 integration is verified. See `evidence/` and the repository status for which physical
 runs have actually completed; local validation does not imply physical deployment.

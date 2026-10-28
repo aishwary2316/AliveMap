@@ -40,7 +40,7 @@ fi
 installed=$(sha256sum "$deploy_dir/semantic_view.py" | cut -d ' ' -f 1)
 test "$installed" = '{digest}'
 echo 'Starting read-only view on loopback 8766. Existing API remains on 8765.'
-echo 'Close this SSH window or press Ctrl+C to stop only this new view.'
+echo 'Keep this SSH window open. Stop only the semantic-view Uvicorn process when finished.'
 exec env ALIVEMAP_UPSTREAM=http://127.0.0.1:8765 "$legacy_dir/.venv/bin/python" -m uvicorn semantic_view:create_app --factory --app-dir "$deploy_dir" --host 127.0.0.1 --port 8766
 '''
     destination = ROOT / ".local/deploy-semantic-view.sh"
