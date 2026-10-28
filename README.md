@@ -3,6 +3,20 @@
 5G MEC autonomous-routing proof of concept using SUMO, TraCI and an existing
 FastAPI/H3 service on a physical MEC server.
 
+## See and control it
+
+Double-click **Open AliveMap Lab.cmd** in this project folder, or run:
+
+    python -m laptop.lab
+
+The visible lab and native SUMO viewer open paused. Use **Play / Pause / Step**,
+report **Warning / Close / Clear**, and inspect **Vehicle decisions** and the
+live explanation log. Keep both SSH windows open. See the
+[hands-on guide](docs/visible-lab.md) for a first experiment.
+
+The detector events and road grid are synthetic. SUMO movement, per-vehicle route
+computation, reports to the physical MEC, and semantic-view responses are live.
+
 ## Current status
 
 The laptop controller has completed a real SUMO run against the physical MEC's
@@ -18,9 +32,11 @@ Its code, environment and running process have not been changed or restarted.
 See docs/mec-api-contract.md for the actual contract and its current limitations.
 The launch command and working directory are verified. Automatic startup/recovery
 and the 5G traffic path remain unverified.
-The additive read-only semantic view is implemented and locally tested. Its
-physical deployment remains pending. It reads the original hazard store over HTTP;
-it does not introduce a second store or replace the existing API.
+The additive read-only semantic view is deployed on the physical MEC and its health
+and manual GUI warning/closure/clear flow are verified. It reads the original
+hazard store over HTTP without introducing a second store or replacing the API.
+The full arrival test used the original API directly; the view's physical evidence
+is a separate manual interaction test, not a second full arrival run.
 
 See [the runnable instructions](docs/run-poc.md) and [verification evidence](evidence/verification.json).
 Do not deploy the older standalone experiment as the existing MEC application.
@@ -46,7 +62,7 @@ verification Python: 3.12). From the repository root:
     python -m pip install -r requirements-dev.txt
     python -m pytest tests -q
 
-All 19 local tests pass with the observed application library versions. These tests
+All 22 local tests pass with the observed application library versions. These tests
 do not contact the physical MEC. The separate physical-MEC run is recorded in evidence/.
 
 For the full laptop environment, install requirements-laptop.txt and run:

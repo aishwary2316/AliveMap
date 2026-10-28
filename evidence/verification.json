@@ -1,7 +1,7 @@
 {
   "recorded_at_utc": "2026-10-28T15:12:17.674710+00:00",
   "local_tests": {
-    "tests": 19,
+    "tests": 22,
     "failures": 0,
     "errors": 0
   },
@@ -27,11 +27,12 @@
   "physical_mec_health": {
     "status": "ok",
     "service": "mec-av-poc",
-    "stored_events": 2
+    "stored_events": 3
   },
   "observed_application_libraries_match_local": true,
   "local_python": "3.12",
   "physical_mec_python": "3.10.12",
-  "semantic_view_physical_deployment": "pending",
-  "five_g_user_plane_verified": false
+  "semantic_view_physical_deployment": "verified healthy; manual GUI update/reroute flow verified",
+  "five_g_user_plane_verified": false,
+  "manual_gui_evidence": "physical-mec-view-manual/verification.json"
 }

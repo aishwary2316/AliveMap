@@ -37,7 +37,8 @@ class MecClient:
         if parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1"):
             raise ValueError("Use the loopback URL of an SSH local forward")
         self.prefix = f"alivemap:{network_id}:{run}:"
-        self.http = http or httpx.Client(base_url=url.rstrip("/"), timeout=5, trust_env=False)
+        self.http = http or httpx.Client(base_url=url.rstrip("/"), timeout=5, trust_env=False,
+                                         limits=httpx.Limits(max_keepalive_connections=0))
         self.semantics_url = semantics_url
         if semantics_url:
             parsed = urlparse(semantics_url)
@@ -49,14 +50,26 @@ class MecClient:
         self.change_number = 0
 
     def preflight(self, expected_schema):
-        response = self.http.get("/health")
-        response.raise_for_status()
+        response = self.get("/health")
         if response.json().get("service") != "mec-av-poc":
             raise ValueError("Forward does not reach the inspected MEC service")
-        response = self.http.get("/openapi.json")
-        response.raise_for_status()
+        response = self.get("/openapi.json")
         if response.json() != expected_schema:
             raise ValueError("Running API schema differs from the reviewed baseline")
+
+    def get(self, path, **kwargs):
+        """Retry a lost/5xx read once; never manufacture an empty state."""
+        for attempt in range(2):
+            try:
+                response = self.http.get(path, **kwargs)
+                response.raise_for_status()
+                return response
+            except (httpx.TransportError, httpx.HTTPStatusError) as exc:
+                if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code < 500:
+                    raise
+                if attempt == 1:
+                    raise
+                time.sleep(0.15)
 
     def report(self, state, lat, lon):
         payload = dict(event_id=self.prefix + "demo-road", vehicle_id="probe",
@@ -91,8 +104,7 @@ class MecClient:
         return event
 
     def all_events(self):
-        response = self.http.get("/hazards")
-        response.raise_for_status()
+        response = self.get("/hazards")
         body = response.json()
         if not isinstance(body, dict) or not isinstance(body.get("events"), list):
             raise ValueError("Expected the real MEC's {events: [...]} response")
@@ -100,8 +112,7 @@ class MecClient:
 
     def snapshot(self):
         if self.semantics_url:
-            response = self.http.get(self.semantics_url, params={"prefix": self.prefix})
-            response.raise_for_status()
+            response = self.get(self.semantics_url, params={"prefix": self.prefix})
             body = response.json()
             if body.get("schema_version") != 1 or body.get("prefix") != self.prefix:
                 raise ValueError("Semantic view returned an unexpected schema or prefix")

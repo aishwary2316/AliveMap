@@ -3,6 +3,10 @@
 The active implementation is in `laptop/`. The original physical MEC source is
 preserved in `mec/baseline/`. The earlier standalone experiment is historical.
 
+For visible, interactive exploration, start `python -m laptop.lab` or double-click
+**Open AliveMap Lab.cmd**. See [the hands-on guide](visible-lab.md). The command-line
+controller below is the automated acceptance runner and is headless by default.
+
 ## Verified behavior
 
 The laptop runs SUMO and TraCI. It sends actual coordinate reports to the physical

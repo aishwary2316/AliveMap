@@ -52,6 +52,24 @@ def test_state_loss_does_not_imply_clear(clients):
         client.snapshot()
 
 
+def test_transient_snapshot_disconnect_is_retried_without_changing_semantics(clients):
+    client, upstream = clients
+    calls = []
+
+    def get_snapshot(request):
+        calls.append(request.url.path)
+        if len(calls) == 1:
+            raise httpx.RemoteProtocolError("Server disconnected", request=request)
+        response = upstream.get(request.url.path)
+        return httpx.Response(response.status_code, json=response.json())
+
+    with httpx.Client(base_url="http://127.0.0.1", transport=httpx.MockTransport(get_snapshot)) as transport:
+        client.http = transport
+        assert client.snapshot()["version"] == 0
+        assert calls == ["/hazards", "/hazards"]
+    client.http = upstream
+
+
 def test_lost_report_response_retries_same_real_payload(clients):
     client, upstream = clients
     requests = []

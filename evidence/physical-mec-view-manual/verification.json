@@ -1,0 +1,16 @@
+{
+  "recorded_at_utc": "2026-10-28T15:52:57.858370+00:00",
+  "run_id": "dd99089e-f2fa-4f5c-bdfa-99fc3adb464e",
+  "verification_mode": "Visible GUI controls against physical MEC and deployed semantic view",
+  "manual_gui_step_0_5_to_1_0_verified": true,
+  "warning_closure_clear_acknowledged": true,
+  "blue_and_orange_route_changes_observed": true,
+  "old_mec_events_preserved": true,
+  "final_own_record_clear": true,
+  "semantic_view_health": {
+    "status": "ok",
+    "service": "alivemap-semantic-view",
+    "upstream_status": "ok"
+  },
+  "full_arrival_run_via_semantic_view": false
+}

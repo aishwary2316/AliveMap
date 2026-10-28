@@ -12,5 +12,8 @@ SSH forwarding, following direct inspection of its source, schema, environment,
 process command and working directory. This is application-level integration
 evidence; it does not prove a 5G user-plane path or measure radio latency.
 
-The semantic extension's physical deployment is a separate step. Its successful
-local integration must not be represented as physical deployment.
+The semantic extension is now deployed and healthy on the physical MEC. The
+`physical-mec-view-manual/` evidence records the GUI step and warning/closure/clear
+flow through that deployed view. It is separate from the complete arrival run
+against the original API; no complete physical arrival run through the view is
+claimed by the manual evidence.

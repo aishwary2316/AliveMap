@@ -28,9 +28,7 @@ package metadata were read without modifying the server.
 
 - The laptop also boots Ubuntu 24.04.
 - The intended deployment uses a 5G MEC communication path.
-- Existing laptop SSH forwarding worked in the earlier setup. A subsequent local
-  request to port 8765 did not respond within three seconds; no usable tunnel is
-  currently assumed by this workspace.
+- The currently used loopback forwards at laptop ports 18765 and 18766 are directly verified for the existing API and deployed semantic view.
 
 ## Remaining discovery before deployment
 
@@ -43,14 +41,12 @@ package metadata were read without modifying the server.
    now directly verified, as is an actual SUMO/controller run against the physical
    API: all 13 checks passed. Keep its tunnel open during further testing.
 4. Verify the intended network path separately before claiming 5G measurements.
-5. The additive read-only semantic view is implemented and locally tested. Its
-   guarded physical deployment and verification remain pending. It reads the
-   existing store without restarting the API or altering its environment.
+5. The read-only semantic view is deployed and its health and manual GUI update flow are verified. A separate full arrival run via that view has not been performed. It reads the existing store without restarting the API or altering its environment.
 
 ## Local working setup
 
 The repository's .venv is separate from the earlier experiment's environment.
-requirements-dev.txt uses the observed MEC package versions plus local test tools. Installation completed after package-download timeouts. All 19 local tests pass, including exact comparison with the observed live OpenAPI schema and checks for the actual client, mapping, routing and semantic view.
+requirements-dev.txt uses the observed MEC package versions plus local test tools. Installation completed after package-download timeouts. All 22 local tests pass, including exact comparison with the observed live OpenAPI schema and checks for the actual client, mapping, routing and semantic view.
 Local tests run on Windows/Python 3.12; this does not substitute for validation on
 Ubuntu/Python 3.10 at the physical MEC.
 
