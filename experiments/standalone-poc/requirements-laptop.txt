@@ -1,0 +1,8 @@
+-r requirements-mec.txt
+eclipse-sumo==1.28.0
+sumo-data==1.28.0
+traci==1.28.0
+sumolib==1.28.0
+pyproj==3.7.1
+httpx==0.28.1
+pytest==8.3.5
