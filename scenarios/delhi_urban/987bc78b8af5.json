@@ -1,0 +1,135 @@
+{
+  "events": [
+    {
+      "kind": "congestion",
+      "sim_time_s": 1
+    },
+    {
+      "kind": "landslide",
+      "sim_time_s": 12
+    },
+    {
+      "kind": "clear",
+      "sim_time_s": 100
+    }
+  ],
+  "hazard": {
+    "anchor_edge": "1474862453#0",
+    "facts": {
+      "traffic_speed_ratio": 0.08
+    },
+    "geometry": {
+      "coordinates": [
+        [
+          [
+            77.27630825514818,
+            28.629579700806744
+          ],
+          [
+            77.2762997285877,
+            28.629545316150548
+          ],
+          [
+            77.27627693717963,
+            28.629516427766635
+          ],
+          [
+            77.27624335071343,
+            28.629497433643373
+          ],
+          [
+            77.2762040824172,
+            28.629491225458448
+          ],
+          [
+            77.27616511051913,
+            28.629498748350315
+          ],
+          [
+            77.2761323681246,
+            28.629518857030284
+          ],
+          [
+            77.27611083996224,
+            28.629548490140298
+          ],
+          [
+            77.27610380350649,
+            28.629583136313393
+          ],
+          [
+            77.27611233000789,
+            28.629617520985196
+          ],
+          [
+            77.27613512139672,
+            28.629646409397743
+          ],
+          [
+            77.2761687078948,
+            28.629665403545896
+          ],
+          [
+            77.27620797625535,
+            28.62967161173737
+          ],
+          [
+            77.2762469482125,
+            28.629664088829895
+          ],
+          [
+            77.27627969062624,
+            28.629643980121298
+          ],
+          [
+            77.27630121875674,
+            28.629614346986397
+          ],
+          [
+            77.27630825514818,
+            28.629579700806744
+          ]
+        ]
+      ],
+      "type": "Polygon"
+    },
+    "kind": "congestion",
+    "source_type": "synthetic_scenario"
+  },
+  "label": "SYNTHETIC SCENARIO on real roads; no measured flood, landslide or traffic claim",
+  "map_build_id": "987bc78b8af596782506620d268d811bb0f347b2515f6982fbffe7dc8dfe8344",
+  "map_id": "delhi_urban",
+  "scenario_id": "delhi_urban_congestion",
+  "schema_version": "1.0",
+  "seed": 42,
+  "ttl_seconds": 1800,
+  "validation": {
+    "affected_edges": [
+      "-1551508289",
+      "1474862453#0",
+      "1551508289"
+    ],
+    "baseline_feasible": true,
+    "blue_reroutes": true,
+    "largest_passenger_component_edges": 13597,
+    "no_feasible_route": false,
+    "orange_route_differs_from_blue": true
+  },
+  "vehicles": {
+    "cautious": {
+      "destination": "80429790#2",
+      "origin": "-653702702#0",
+      "profile": "time_sensitive"
+    },
+    "standard": {
+      "destination": "80429790#2",
+      "origin": "-653702702#0",
+      "profile": "distance_focused"
+    },
+    "unaffected": {
+      "destination": "1074096016#0",
+      "origin": "-423290723#0",
+      "profile": "distance_focused"
+    }
+  }
+}

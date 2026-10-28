@@ -1,0 +1,70 @@
+{
+  "background": {
+    "centerX": 7547.850000000006,
+    "centerY": 7958.2400000002235,
+    "file": "background/satellite.png",
+    "height": 18570.0,
+    "layer": -100,
+    "width": 20530.0
+  },
+  "bounds_wgs84": [
+    72.595,
+    21.055,
+    72.79,
+    21.22
+  ],
+  "build_id": "589575089e565ff73cad4a07a2dfc0083b5fcbf9d8952cd649da4b817a14fc89",
+  "built_at": "2026-10-28T19:36:35.928228+00:00",
+  "checksums": {
+    "processed/elevation_metric.tif": "8e726baf57656abbd49ac1d9a3208fcfa088b11ac751ff05a00676a6a2df7b7c",
+    "processed/graph.json": "bde8ba7e599ef1c7c54c72778c8ce29097857313cc3ecfc5f62150c891d10d41",
+    "processed/provenance.json": "0c0f0dc283adf93d6f569710576401a1df2683e4286eee26f4580f8385a8187a",
+    "processed/road_attributes.json": "5798356232dc44e5c35bd1316803c3a496492d3261b013f5d34185a374418ffc",
+    "processed/satellite_metric.tif": "c49271749f757fb9756cd12d5fa269606a414838b953d903597a3edd0650a085",
+    "processed/scenario.json": "a078eb3f43554538d5e9d333cca617568206079ddd2b1cd98c9b2864e1de7869",
+    "processed/spatial_index.json": "7e1a4f021fd78f85989dedd253ea7996a9ecbf47487caebc40e920295ea3fb53",
+    "source/elevation.tif": "39d9d7b0d3610dc431d68c9e46b917327f74e741a5e4c0d574df3a84bbc6e490",
+    "source/elevation_tiles/tile0.tif": "854f5b94acc07f5cc058f5c23a1cce02d474048c40f46cf2a64100013aa2d4a7",
+    "source/roads.osm.xml": "872be41c7eb3133d6061fe88895ff3808f042786b0f18f0b576dee08d091a150",
+    "source/satellite-catalogue.json": "605dfe0078644e0a3e7d2202180e0d974a81d08a6cf2dabd704f2b920b954b1a",
+    "source/satellite.tif": "c49271749f757fb9756cd12d5fa269606a414838b953d903597a3edd0650a085",
+    "source/satellite_tiles/scene0.tif": "c49271749f757fb9756cd12d5fa269606a414838b953d903597a3edd0650a085",
+    "sumo/background/satellite.png": "7a97fc2f4cea7b93e46f6b27e71273b9c6724ceb0281dbe67c7308e05b6f27a7",
+    "sumo/network.net.xml": "26f7215ef41f7ed48e9fe8c672d522eee84a3a40fb46d1cfb396397b9a7cb2c9",
+    "sumo/scenario.sumocfg": "53344d079ae352da018f11bbee4ecb44d69e5415803d52d7fb8503fa675d4c63",
+    "sumo/view.xml": "197c4e19fbc4de673b255370bc073f022d8f514288ec6c40a700f83890f57ba3"
+  },
+  "demonstration": "flood",
+  "display_name": "Gujarat - Hazira / Dumas / Tapi estuary",
+  "edge_count": 19862,
+  "elevation_raster": "source/elevation.tif",
+  "h3_resolutions": {
+    "macro": 8,
+    "micro": 10
+  },
+  "h3_version": "4.5.0",
+  "map_id": "gujarat_coastal",
+  "metric_crs": "EPSG:32643",
+  "package_id": "gujarat_coastal",
+  "provenance_file": "processed/provenance.json",
+  "reference": "Hazira-Dumas and lower Tapi estuary",
+  "reference_source": "https://www.openstreetmap.org/",
+  "revision": "589575089e56",
+  "road_attributes": "processed/road_attributes.json",
+  "routing_graph": "processed/graph.json",
+  "satellite_raster": "source/satellite.tif",
+  "scenario": "processed/scenario.json",
+  "schema_version": "1.0",
+  "source_crs": "EPSG:4326",
+  "spatial_index": "processed/spatial_index.json",
+  "status": "complete",
+  "sumo_config": "sumo/scenario.sumocfg",
+  "sumo_network": "sumo/network.net.xml",
+  "sumo_offset": [
+    -252797.15,
+    -2331156.76
+  ],
+  "terrain_valid_edges": 19490,
+  "variant": null,
+  "warnings": []
+}

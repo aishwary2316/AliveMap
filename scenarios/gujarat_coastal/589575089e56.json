@@ -1,0 +1,135 @@
+{
+  "events": [
+    {
+      "kind": "flood",
+      "sim_time_s": 1
+    },
+    {
+      "kind": "landslide",
+      "sim_time_s": 12
+    },
+    {
+      "kind": "clear",
+      "sim_time_s": 100
+    }
+  ],
+  "hazard": {
+    "anchor_edge": "938719796#19",
+    "facts": {
+      "water_depth_m": 0.25
+    },
+    "geometry": {
+      "coordinates": [
+        [
+          [
+            72.76668208372669,
+            21.211816308916674
+          ],
+          [
+            72.76667527455058,
+            21.211781661272287
+          ],
+          [
+            72.76665484384353,
+            21.21175209446706
+          ],
+          [
+            72.76662390200029,
+            21.21173210977531
+          ],
+          [
+            72.76658715963339,
+            21.21172474968069
+          ],
+          [
+            72.76655021042663,
+            21.211731134688282
+          ],
+          [
+            72.76651867955235,
+            21.21175029273935
+          ],
+          [
+            72.76649736729556,
+            21.211779307198036
+          ],
+          [
+            72.76648951825672,
+            21.211813760880524
+          ],
+          [
+            72.76649632738939,
+            21.21184840852858
+          ],
+          [
+            72.76651675807426,
+            21.211877975351083
+          ],
+          [
+            72.76654769992955,
+            21.211897960063588
+          ],
+          [
+            72.76658444233567,
+            21.211905320170274
+          ],
+          [
+            72.76662139158589,
+            21.211898935159002
+          ],
+          [
+            72.76665292248234,
+            21.211879777090655
+          ],
+          [
+            72.76667423472709,
+            21.211850762611224
+          ],
+          [
+            72.76668208372669,
+            21.211816308916674
+          ]
+        ]
+      ],
+      "type": "Polygon"
+    },
+    "kind": "flood",
+    "source_type": "synthetic_scenario"
+  },
+  "label": "SYNTHETIC SCENARIO on real roads; no measured flood, landslide or traffic claim",
+  "map_build_id": "589575089e565ff73cad4a07a2dfc0083b5fcbf9d8952cd649da4b817a14fc89",
+  "map_id": "gujarat_coastal",
+  "scenario_id": "gujarat_coastal_flood",
+  "schema_version": "1.0",
+  "seed": 42,
+  "ttl_seconds": 1800,
+  "validation": {
+    "affected_edges": [
+      "528955787#2",
+      "938719796#19",
+      "940338554#7"
+    ],
+    "baseline_feasible": true,
+    "blue_reroutes": true,
+    "largest_passenger_component_edges": 19203,
+    "no_feasible_route": false,
+    "orange_route_differs_from_blue": true
+  },
+  "vehicles": {
+    "cautious": {
+      "destination": "943873115#0",
+      "origin": "940328663",
+      "profile": "low_clearance"
+    },
+    "standard": {
+      "destination": "943873115#0",
+      "origin": "940328663",
+      "profile": "high_clearance"
+    },
+    "unaffected": {
+      "destination": "528747117#0",
+      "origin": "-554557720#0",
+      "profile": "high_clearance"
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "delhi_urban": {
+    "map_id": "delhi_urban",
+    "display_name": "Delhi - ITO / Vikas Marg",
+    "bounds_wgs84": [
+      77.225,
+      28.605,
+      77.287,
+      28.66
+    ],
+    "metric_crs": "EPSG:32643",
+    "demonstration": "congestion",
+    "reference": "ITO / Vikas Marg road corridor",
+    "reference_source": "https://www.openstreetmap.org/",
+    "variant": null
+  },
+  "gujarat_coastal": {
+    "map_id": "gujarat_coastal",
+    "display_name": "Gujarat - Hazira / Dumas / Tapi estuary",
+    "bounds_wgs84": [
+      72.595,
+      21.055,
+      72.79,
+      21.22
+    ],
+    "metric_crs": "EPSG:32643",
+    "demonstration": "flood",
+    "reference": "Hazira-Dumas and lower Tapi estuary",
+    "reference_source": "https://www.openstreetmap.org/",
+    "variant": null
+  },
+  "manipur_mantripukhri": {
+    "map_id": "manipur_mantripukhri",
+    "group_id": "manipur_hills",
+    "display_name": "Manipur - Mantripukhri / northward hill approach",
+    "bounds_wgs84": [
+      93.9,
+      24.83,
+      94.02,
+      25.015
+    ],
+    "metric_crs": "EPSG:32646",
+    "demonstration": "landslide",
+    "reference": "IIIT city campus roads near 24.843 N, 93.939 E; northward hill approach",
+    "reference_source": "https://ditmanipur.gov.in/iiit-manipur/",
+    "variant": "mantripukhri"
+  },
+  "manipur_mayangkhang": {
+    "map_id": "manipur_mayangkhang",
+    "group_id": "manipur_hills",
+    "display_name": "Manipur - Mayangkhang / NH2 hill corridor",
+    "bounds_wgs84": [
+      93.94,
+      25.16,
+      94.08,
+      25.35
+    ],
+    "metric_crs": "EPSG:32646",
+    "demonstration": "landslide",
+    "reference": "Mayangkhang village reference 25.2131358 N, 93.9953714 E; permanent-campus region, exact campus boundary not surveyed",
+    "reference_source": "https://ditmanipur.gov.in/iiit-manipur/",
+    "variant": "mayangkhang"
+  }
+}

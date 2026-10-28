@@ -23,6 +23,7 @@ class LabWorker(threading.Thread):
         self.playing, self.automatic, self.healthy = False, False, False
         self.delay, self.phase = 0.25, 0
         self.last_poll = 0
+        self.last_error = None
 
     def emit(self, kind, **data):
         self.updates.put({"kind": kind, **data})
@@ -33,15 +34,21 @@ class LabWorker(threading.Thread):
             self.session.close()
         self.session = None
         self.emit("loading", message="Loading SUMO and checking physical MEC…")
-        self.session = LiveSession(self.args, self.emit)
+        if getattr(self.args, "map_package", None):
+            from .geo_session import ScenarioController
+            self.controller = ScenarioController(self.args, self.emit)
+            self.session = self.controller.activate(self.args.map_package, getattr(self.args, "scenario", None))
+        else:
+            self.session = LiveSession(self.args, self.emit)
         self.healthy, self.automatic, self.phase = True, automatic, 0
+        self.last_error = None
         self.playing = automatic
         self.last_poll = time.monotonic()
 
     def publish(self):
         if self.session:
             frame = self.session.frame()
-            frame.update(playing=self.playing, automatic=self.automatic, healthy=self.healthy)
+            frame.update(playing=self.playing, automatic=self.automatic, healthy=self.healthy, last_error=self.last_error)
             self.emit("frame", **frame)
             # Project-owned diagnostic snapshot; raw run logs remain ignored.
             path = self.session.output / "current.json"
@@ -50,19 +57,26 @@ class LabWorker(threading.Thread):
     def run(self):
         try:
             try:
-                self.reset()
-                self.publish()
+                if not getattr(self.args, "defer_start", False):
+                    self.reset()
+                    self.publish()
             except Exception as exc:
                 self.emit("error", message=str(exc))
             while True:
                 try:
-                    action, value = self.commands.get(timeout=self.delay if self.playing else 1.0)
+                    command = self.commands.get(timeout=self.delay if self.playing else 1.0)
+                    action, value = command[:2]
+                    if len(command) == 3 and command[2] != (self.session.run_id if self.session else None):
+                        continue  # Commands captured for an old map cannot affect a new epoch.
                 except queue.Empty:
                     action, value = ("tick", None) if self.playing else ("poll", None)
                 if action == "stop":
                     break
                 try:
-                    if action == "reset":
+                    if action == "load":
+                        self.args.map_package, self.args.scenario = value
+                        self.reset(True)
+                    elif action == "reset":
                         self.reset(False)
                     elif action == "demo":
                         self.reset(True)
@@ -89,8 +103,10 @@ class LabWorker(threading.Thread):
                             if not self.healthy:
                                 raise RuntimeError("Reconnect to MEC before advancing the simulation.")
                             self.session.step()
-                            if self.automatic and self.phase < 3 and self.session.sim_time >= (1, 45, 100)[self.phase]:
-                                self.session.report(("warning", "closed", "clear")[self.phase])
+                            timeline = self.session.scenario["events"] if hasattr(self.session, "scenario") else [
+                                {"sim_time_s": t, "kind": k} for t, k in zip((1, 45, 100), ("warning", "closed", "clear"))]
+                            if self.automatic and self.phase < len(timeline) and self.session.sim_time >= timeline[self.phase]["sim_time_s"]:
+                                self.session.report(timeline[self.phase]["kind"])
                                 self.phase += 1
                             if time.monotonic() - self.last_poll >= 1:
                                 self.session.refresh()
@@ -101,6 +117,7 @@ class LabWorker(threading.Thread):
                     self.publish()
                 except Exception as exc:
                     self.playing, self.healthy = False, False
+                    self.last_error = str(exc)
                     self.emit("error", message=str(exc))
                     try:
                         self.publish()

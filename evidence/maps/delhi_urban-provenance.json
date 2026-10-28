@@ -1,0 +1,116 @@
+{
+  "conversion": {
+    "elevation_strategy": "standalone rasterio sampling; independent of native SUMO heightmap support",
+    "h3_average_edge_length_m": {
+      "10": 75.863783,
+      "8": 531.41401
+    },
+    "h3_index_method": "densify <= quarter average H3 edge, one-ring candidates, exact projected line/cell intersection",
+    "heightmap_option_listed": true,
+    "limitations": "OSM tags may be incomplete; netconvert warnings retained; no measured traffic or hydrodynamics",
+    "native_heightmap_probe": {
+      "diagnostic": "tion radius to avoid this).\nWarning: Intersecting left turns at junction '4214796818' from lane '-994845129#0_0' and lane '-1077879618_0' (increase junction radius to avoid this).\nWarning: Connection '502429503_0->870450051_0' is only 0.09m short.\nWarning: Connection '44141357#1_0->44830358#1_0' is only 0.00m short.\nWarning: Connection '1109543700#2_0->77011093#3_1' is only 0.00m short.\nWarning: Edge '-1040104481#2' has a grade of 27.38%.\nWarning: Connection '-1040104481#2_0->1040104484#0_0' has a grade of 11.87%.\nWarning: Edge '-1040104483#1' has a grade of 15.69%.\nWarning: Edge '-1040104486#0' has a grade of 10.67%.\nWarning: Edge '-1040104486#1' has a grade of 12.29%.\nWarning: Edge '-1042960784' has a grade of 11.89%.\nWarning: Connection '-1076782191_0->-717454375#1_0' has a grade of 19.19%.\nWarning: Connection '-1430219723_0->-264592550#5_0' has a grade of 10.15%.\nWarning: Connection '-145411835#1_0->145411838#0_0' has a grade of 13.41%.\nWarning: Connection '-145411838#0_0->-264592550#5_0' has a grade of 10.04%.\nWarning: 10 total messages of type: Ambiguity in turnarounds computation at junction '%'.\nWarning: 93 total messages of type: Connection '%' has a grade of %%.\nWarning: 3104 total messages of type: Could not get height data for coordinate %\nWarning: 3241 total messages of type: Edge '%' has a grade of %%.\nWarning: 15 total messages of type: Found angle of % degrees at edge '%', segment %.\nWarning: 75 total messages of type: Found sharp turn with radius % at the % of edge '%'.\nWarning: 38 total messages of type: Intersecting left turns at junction '%' from lane '%' and lane '%' (increase junction radius to avoid this).\nWarning: 24 total messages of type: Minor green from edge '%' to edge '%' exceeds %m/s. Maybe a left-turn lane is missing.\nWarning: 7 total messages of type: Shape for junction '%' has distance % to its given position.\nWarning: 181 total messages of type: Speed of % connection '%' reduced by % due to turning radius of % (length=%, angle=%).\n",
+      "exit_code": 0
+    },
+    "sumo_version": "Eclipse SUMO netconvert 1.28.0\n Build features: Windows-10.0.26100 AMD64 MSVC 19.51.36260.0 Release FMI Proj GUI FMT Intl SWIG Parquet Eigen GDAL FFmpeg OSG GL2PS JuPedSim\n Copyright (C) 2001-2026 German Aerospace Center (DLR) and others; https://sumo.dlr.de\n\nEclipse SUMO netconvert 1.28.0 is part of SUMO.\nThis program and the accompanying materials\nare made available under the terms of the Eclipse Public License v2.0\nwhich accompanies this distribution, and is available at\nhttp://www.eclipse.org/legal/epl-v20.html\nThis program may also be made available under the following Secondary\nLicenses when the conditions for such availability set forth in the Eclipse\nPublic License 2.0 are satisfied: GNU General Public License, version 2\nor later which is available at\nhttps://www.gnu.org/licenses/old-licenses/gpl-2.0-standalone.html\nSPDX-License-Identifier: EPL-2.0 OR GPL-2.0-or-later"
+  },
+  "elevation": {
+    "acquired_at": "2026-10-28T19:21:15.956136+00:00",
+    "attribution": "Copernicus DEM, \u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018",
+    "license": "Copernicus DEM GLO-30 public licence",
+    "license_url": "https://copernicus-dem-30m.s3.amazonaws.com/readme.html",
+    "nominal_sampling_m": 30,
+    "product": "Copernicus DEM GLO-30 Public, 2021 release",
+    "source_url": "https://registry.opendata.aws/copernicus-dem/",
+    "surface_model": "DSM; includes surface objects",
+    "tiles": [
+      {
+        "nodata": null,
+        "source_crs": "EPSG:4326",
+        "source_resolution": [
+          0.0002777777777777778,
+          0.0002777777777777778
+        ],
+        "source_url": "https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_N28_00_E077_00_DEM/Copernicus_DSM_COG_10_N28_00_E077_00_DEM.tif",
+        "subset_crs": "EPSG:4326",
+        "subset_operation": "georeferenced footprint window; bounded read",
+        "subset_resolution": [
+          0.0002777777777777778,
+          0.0002777777777777778
+        ]
+      }
+    ],
+    "vertical_datum": "EGM2008 orthometric heights",
+    "vertical_units": "metres"
+  },
+  "roads": {
+    "acquired_at": "2026-10-28T19:20:46.593756+00:00",
+    "attribution": "\u00a9 OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "license_url": "https://www.openstreetmap.org/copyright",
+    "product": "OpenStreetMap road extract",
+    "query": "[out:xml][timeout:90];(way[\"highway\"][\"area\"!=\"yes\"](28.605,77.225,28.66,77.287);relation[\"type\"=\"restriction\"](28.605,77.225,28.66,77.287););(._;>;);out meta;",
+    "source_url": "https://overpass-api.de/api/interpreter"
+  },
+  "satellite": {
+    "acquired_at": "2026-10-28T19:21:30.949789+00:00",
+    "attribution": "Contains modified Copernicus Sentinel data 2024, accessed via Element 84 Earth Search",
+    "license": "Copernicus Sentinel free, full and open access terms",
+    "license_url": "https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice",
+    "nominal_sampling_m": 10,
+    "product": "Copernicus Sentinel-2 L2A natural colour (TCI)",
+    "scenes": [
+      {
+        "cloud_cover_percent": 0,
+        "datetime": "2024-10-30T05:41:32.820000Z",
+        "item_id": "S2C_43RGM_20241030_1_L2A",
+        "nodata": 0.0,
+        "source_crs": "EPSG:32643",
+        "source_resolution": [
+          10.0,
+          10.0
+        ],
+        "source_url": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/43/R/GM/2024/10/S2C_43RGM_20241030_1_L2A/TCI.tif",
+        "stac_geometry": {
+          "coordinates": [
+            [
+              [
+                78.16981240915118,
+                28.68421996265372
+              ],
+              [
+                77.25620185892194,
+                28.901605943820652
+              ],
+              [
+                77.05101419161053,
+                28.911748892840734
+              ],
+              [
+                77.03202594426483,
+                27.922163955018085
+              ],
+              [
+                78.1466761828296,
+                27.90120170188809
+              ],
+              [
+                78.16981240915118,
+                28.68421996265372
+              ]
+            ]
+          ],
+          "type": "Polygon"
+        },
+        "subset_crs": "EPSG:32643",
+        "subset_operation": "georeferenced footprint window; bounded read",
+        "subset_resolution": [
+          10.0,
+          10.0
+        ]
+      }
+    ],
+    "source_url": "https://earth-search.aws.element84.com/v1/search?collections=sentinel-2-l2a&bbox=77.225%2C28.605%2C77.287%2C28.66&datetime=2024-01-01T00%3A00%3A00Z%2F2024-12-31T23%3A59%3A59Z&limit=40&query=%7B%22eo%3Acloud_cover%22%3A+%7B%22lt%22%3A+20%7D%7D",
+    "warning": "Historical context imagery; cloud cover is catalogue-wide, not a local cloud assessment"
+  }
+}

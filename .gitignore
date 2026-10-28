@@ -17,3 +17,7 @@ __pycache__/
 runs/
 data/
 *.log
+map_packages/.staging/
+map_packages/*/*/source/
+map_packages/*/*/processed/
+map_packages/*/*/sumo/

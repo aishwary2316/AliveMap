@@ -1,0 +1,112 @@
+{
+  "conversion": {
+    "elevation_strategy": "standalone rasterio sampling; independent of native SUMO heightmap support",
+    "h3_average_edge_length_m": {
+      "10": 75.863783,
+      "8": 531.41401
+    },
+    "h3_index_method": "densify <= quarter average H3 edge, one-ring candidates, exact projected line/cell intersection",
+    "heightmap_option_listed": true,
+    "limitations": "OSM tags may be incomplete; netconvert warnings retained; no measured traffic or hydrodynamics",
+    "native_heightmap_probe": {
+      "diagnostic": "Warning: Could not get height data for coordinate 72.79,21.08\nWarning: Could not get height data for coordinate 72.79,21.08\nWarning: Could not get height data for coordinate 72.79,21.08\nWarning: Could not get height data for coordinate 72.79,21.08\nWarning: Could not get height data for coordinate 72.79,21.10\n",
+      "exit_code": 3221225477
+    },
+    "sumo_version": "Eclipse SUMO netconvert 1.28.0\n Build features: Windows-10.0.26100 AMD64 MSVC 19.51.36260.0 Release FMI Proj GUI FMT Intl SWIG Parquet Eigen GDAL FFmpeg OSG GL2PS JuPedSim\n Copyright (C) 2001-2026 German Aerospace Center (DLR) and others; https://sumo.dlr.de\n\nEclipse SUMO netconvert 1.28.0 is part of SUMO.\nThis program and the accompanying materials\nare made available under the terms of the Eclipse Public License v2.0\nwhich accompanies this distribution, and is available at\nhttp://www.eclipse.org/legal/epl-v20.html\nThis program may also be made available under the following Secondary\nLicenses when the conditions for such availability set forth in the Eclipse\nPublic License 2.0 are satisfied: GNU General Public License, version 2\nor later which is available at\nhttps://www.gnu.org/licenses/old-licenses/gpl-2.0-standalone.html\nSPDX-License-Identifier: EPL-2.0 OR GPL-2.0-or-later"
+  },
+  "elevation": {
+    "acquired_at": "2026-10-28T19:35:18.510349+00:00",
+    "attribution": "Copernicus DEM, \u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018",
+    "license": "Copernicus DEM GLO-30 public licence",
+    "license_url": "https://copernicus-dem-30m.s3.amazonaws.com/readme.html",
+    "nominal_sampling_m": 30,
+    "product": "Copernicus DEM GLO-30 Public, 2021 release",
+    "source_url": "https://registry.opendata.aws/copernicus-dem/",
+    "surface_model": "DSM; includes surface objects",
+    "tiles": [
+      {
+        "nodata": null,
+        "source_crs": "EPSG:4326",
+        "source_resolution": [
+          0.0002777777777777778,
+          0.0002777777777777778
+        ],
+        "source_url": "https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_N21_00_E072_00_DEM/Copernicus_DSM_COG_10_N21_00_E072_00_DEM.tif",
+        "subset_crs": "EPSG:4326",
+        "subset_operation": "georeferenced footprint window; bounded read",
+        "subset_resolution": [
+          0.0002777777777777778,
+          0.0002777777777777778
+        ]
+      }
+    ],
+    "vertical_datum": "EGM2008 orthometric heights",
+    "vertical_units": "metres"
+  },
+  "roads": {
+    "acquired_at": "2026-10-28T19:34:48.792810+00:00",
+    "attribution": "\u00a9 OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "license_url": "https://www.openstreetmap.org/copyright",
+    "product": "OpenStreetMap road extract",
+    "query": "[out:xml][timeout:90];(way[\"highway\"][\"area\"!=\"yes\"](21.055,72.595,21.22,72.79);relation[\"type\"=\"restriction\"](21.055,72.595,21.22,72.79););(._;>;);out meta;",
+    "source_url": "https://overpass-api.de/api/interpreter"
+  },
+  "satellite": {
+    "acquired_at": "2026-10-28T19:35:35.382138+00:00",
+    "attribution": "Contains modified Copernicus Sentinel data 2024, accessed via Element 84 Earth Search",
+    "license": "Copernicus Sentinel free, full and open access terms",
+    "license_url": "https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice",
+    "nominal_sampling_m": 10,
+    "product": "Copernicus Sentinel-2 L2A natural colour (TCI)",
+    "scenes": [
+      {
+        "cloud_cover_percent": 0.000368,
+        "datetime": "2024-11-27T05:53:13.661000Z",
+        "item_id": "S2B_43QBD_20241127_0_L2A",
+        "nodata": 0.0,
+        "source_crs": "EPSG:32643",
+        "source_resolution": [
+          10.0,
+          10.0
+        ],
+        "source_url": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/43/Q/BD/2024/11/S2B_43QBD_20241127_0_L2A/TCI.tif",
+        "stac_geometry": {
+          "coordinates": [
+            [
+              [
+                72.10083233123775,
+                21.678060731101517
+              ],
+              [
+                72.12010061510877,
+                20.687253800402253
+              ],
+              [
+                73.17353803236387,
+                20.701649629400997
+              ],
+              [
+                73.16130544826852,
+                21.693212558458992
+              ],
+              [
+                72.10083233123775,
+                21.678060731101517
+              ]
+            ]
+          ],
+          "type": "Polygon"
+        },
+        "subset_crs": "EPSG:32643",
+        "subset_operation": "georeferenced footprint window; bounded read",
+        "subset_resolution": [
+          10.0,
+          10.0
+        ]
+      }
+    ],
+    "source_url": "https://earth-search.aws.element84.com/v1/search?collections=sentinel-2-l2a&bbox=72.595%2C21.055%2C72.79%2C21.22&datetime=2024-01-01T00%3A00%3A00Z%2F2024-12-31T23%3A59%3A59Z&limit=40&query=%7B%22eo%3Acloud_cover%22%3A+%7B%22lt%22%3A+20%7D%7D",
+    "warning": "Historical context imagery; cloud cover is catalogue-wide, not a local cloud assessment"
+  }
+}

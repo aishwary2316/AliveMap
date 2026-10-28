@@ -22,6 +22,7 @@ FLEET = {
 class LiveSession:
     def __init__(self, args, emit=lambda kind, **data: None, http=None):
         self.args, self.emit = args, emit
+        self.fleet = FLEET
         self.net, self.network_id = load()
         self.run_id = str(uuid4())
         self.client = MecClient(args.mec_url, self.run_id, self.network_id, http=http,
@@ -86,7 +87,7 @@ class LiveSession:
 
     @property
     def complete(self):
-        return self.arrived == set(FLEET)
+        return self.arrived == set(self.fleet)
 
     def record(self, kind, **data):
         event = {"event": kind, **data}
@@ -147,7 +148,7 @@ class LiveSession:
 
     def step(self):
         self.connection.simulationStep()
-        self.arrived.update(set(self.connection.simulation.getArrivedIDList()) & set(FLEET))
+        self.arrived.update(set(self.connection.simulation.getArrivedIDList()) & set(self.fleet))
         if self.connection.simulation.getCollidingVehiclesNumber() or self.connection.simulation.getStartingTeleportNumber():
             raise RuntimeError("Unexpected collision or teleport; paused for inspection")
         self.plan()

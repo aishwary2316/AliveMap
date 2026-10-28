@@ -5,6 +5,17 @@ FastAPI/H3 service on a physical MEC server.
 
 ## See and control it
 
+For **real geographic maps**, double-click **Open AliveMap Maps.cmd**.
+Choose Delhi, Gujarat, or Manipur (Mantripukhri / Mayangkhang), then **Load / Start**.
+SUMO opens with satellite context and computed vehicle routes. **Pause**, **Step**,
+and the incident controls let you inspect the live experiment. Keep the MEC SSH
+tunnel open. The previous grid lab remains available below.
+
+See the [Windows map-system runbook](docs/map-system.md) and
+[map-stage verification](evidence/maps/verification.json). Four offline packages
+were built locally from OSM, Copernicus GLO-30 and Sentinel-2. Heavy assets are
+excluded from Git; the runbook gives exact rebuild commands for another laptop.
+
 Double-click **Open AliveMap Lab.cmd** in this project folder, or run:
 
     python -m laptop.lab

@@ -4,3 +4,7 @@ sumo-data==1.28.0
 traci==1.28.0
 sumolib==1.28.0
 pyproj==3.7.1
+shapely==2.1.2
+rasterio==1.4.3
+networkx==3.5
+pillow==11.3.0

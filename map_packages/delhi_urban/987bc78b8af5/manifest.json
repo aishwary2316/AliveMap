@@ -1,0 +1,71 @@
+{
+  "background": {
+    "centerX": 3306.939999999944,
+    "centerY": 3826.9799999999814,
+    "file": "background/satellite.png",
+    "height": 6210.0,
+    "layer": -100,
+    "width": 6180.0
+  },
+  "bounds_wgs84": [
+    77.225,
+    28.605,
+    77.287,
+    28.66
+  ],
+  "build_id": "987bc78b8af596782506620d268d811bb0f347b2515f6982fbffe7dc8dfe8344",
+  "built_at": "2026-10-28T19:22:12.168355+00:00",
+  "checksums": {
+    "processed/elevation_metric.tif": "5c67fc469459c0e4e2f07f2171bdb7d260dd5399968ef1f365e42f29b1be395a",
+    "processed/graph.json": "8adf2b84157310271c9c13c6545afc7bd8ef0fe09e91efbed0ae22deb93a21ea",
+    "processed/heightmap-probe.net.xml": "75cdd9fa716e88ff7547dd5d40e577529de6a248d12bda908c0250fc1e28e0cf",
+    "processed/provenance.json": "4f1970474fd9fd7fd9f8bfc2b9e330a29c73304bba172ce008f48960c08b3844",
+    "processed/road_attributes.json": "7d4aa49145c7c12e9bd469dfda7797efe6e04eb7ba9983bcbc7ba43810294d4f",
+    "processed/satellite_metric.tif": "09d0ec5df6f45017355972d472cd51bf47cbf5fafce66a5a28c9b1b7c3815e01",
+    "processed/scenario.json": "2eb64606426bf4e4aa18af77278f441be4c3fdf162b5e82914ad2a4b5b6baf3e",
+    "processed/spatial_index.json": "8a41cde23c9e1cada89adde9f1d367b463a13956688d4c607033e9cce5ead6f7",
+    "source/elevation.tif": "f9a0d636137669e873a5b2368c845bccd82483a40586882884048d7f192d6e85",
+    "source/elevation_tiles/tile0.tif": "3d5867b29192617c2dce681130f046601d6f2e3cbc0f8ca59ce5ec158ab8ab3a",
+    "source/roads.osm.xml": "7be55b61dffd401f944bc6d064e9b6a992dee1830e1afae73f6b0afdfa6c9964",
+    "source/satellite-catalogue.json": "62fdc11b80007aa57b277eee4712e1857680219dd8c8dea3b3431786c4427f45",
+    "source/satellite.tif": "09d0ec5df6f45017355972d472cd51bf47cbf5fafce66a5a28c9b1b7c3815e01",
+    "source/satellite_tiles/scene0.tif": "09d0ec5df6f45017355972d472cd51bf47cbf5fafce66a5a28c9b1b7c3815e01",
+    "sumo/background/satellite.png": "0c3500c51123e331e0e9a1d0c5946f4bed684778ff317f8b9248009ac6333064",
+    "sumo/network.net.xml": "0303c54ff421e83ef3208914be3aa21467dc2043a1a1c2b7822e166a422417a5",
+    "sumo/scenario.sumocfg": "53344d079ae352da018f11bbee4ecb44d69e5415803d52d7fb8503fa675d4c63",
+    "sumo/view.xml": "223e4c62f6827fe2ccf6cf0d606b6751be19e6f54f683cb2924947913699b208"
+  },
+  "demonstration": "congestion",
+  "display_name": "Delhi \u00c2\u00b7 ITO / Vikas Marg",
+  "edge_count": 14066,
+  "elevation_raster": "source/elevation.tif",
+  "h3_resolutions": {
+    "macro": 8,
+    "micro": 10
+  },
+  "h3_version": "4.5.0",
+  "map_id": "delhi_urban",
+  "metric_crs": "EPSG:32643",
+  "package_id": "delhi_urban",
+  "provenance_file": "processed/provenance.json",
+  "reference": "ITO / Vikas Marg road corridor",
+  "reference_source": "https://www.openstreetmap.org/",
+  "revision": "987bc78b8af5",
+  "road_attributes": "processed/road_attributes.json",
+  "routing_graph": "processed/graph.json",
+  "satellite_raster": "source/satellite.tif",
+  "scenario": "processed/scenario.json",
+  "schema_version": "1.0",
+  "source_crs": "EPSG:4326",
+  "spatial_index": "processed/spatial_index.json",
+  "status": "complete",
+  "sumo_config": "sumo/scenario.sumocfg",
+  "sumo_network": "sumo/network.net.xml",
+  "sumo_offset": [
+    -717233.06,
+    -3165528.02
+  ],
+  "terrain_valid_edges": 13552,
+  "variant": null,
+  "warnings": []
+}

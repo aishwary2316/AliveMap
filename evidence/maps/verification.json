@@ -1,0 +1,154 @@
+{
+  "recorded_at": "2026-10-28T19:45:59.512717+00:00",
+  "local_tests": {
+    "passed": 39,
+    "warnings": [
+      "Starlette httpx deprecation",
+      "Rasterio affine multiplication pending deprecation"
+    ],
+    "physical_MEC_contacted_by_pytest": false
+  },
+  "packages": [
+    {
+      "map_id": "delhi_urban",
+      "revision": "987bc78b8af5",
+      "bounds_wgs84": [
+        77.225,
+        28.605,
+        77.287,
+        28.66
+      ],
+      "metric_crs": "EPSG:32643",
+      "status": "complete",
+      "edge_count": 14066,
+      "terrain_valid_edges": 13552
+    },
+    {
+      "map_id": "gujarat_coastal",
+      "revision": "589575089e56",
+      "bounds_wgs84": [
+        72.595,
+        21.055,
+        72.79,
+        21.22
+      ],
+      "metric_crs": "EPSG:32643",
+      "status": "complete",
+      "edge_count": 19862,
+      "terrain_valid_edges": 19490
+    },
+    {
+      "map_id": "manipur_mantripukhri",
+      "revision": "ecaa6526ec4a",
+      "bounds_wgs84": [
+        93.9,
+        24.83,
+        94.02,
+        25.015
+      ],
+      "metric_crs": "EPSG:32646",
+      "status": "complete",
+      "edge_count": 6078,
+      "terrain_valid_edges": 5889
+    },
+    {
+      "map_id": "manipur_mayangkhang",
+      "revision": "5e1df1d5fb64",
+      "bounds_wgs84": [
+        93.94,
+        25.16,
+        94.08,
+        25.35
+      ],
+      "metric_crs": "EPSG:32646",
+      "status": "complete",
+      "edge_count": 156,
+      "terrain_valid_edges": 138
+    }
+  ],
+  "physical_runs": [
+    {
+      "experiment_id": "91494f78-1682-434e-a972-de02e4db0bb8",
+      "map_id": "delhi_urban",
+      "gui": true,
+      "sim_time_s": 537.5,
+      "report_count": 1,
+      "checks": {
+        "all_arrived": true,
+        "semantic_reports_acknowledged": true,
+        "route_changes": 1,
+        "cautious_drove_detour": true,
+        "standard_drove_affected_road": true
+      }
+    },
+    {
+      "experiment_id": "aa699e72-0b41-40c2-9ac2-f9dc356a7b22",
+      "map_id": "delhi_urban",
+      "gui": true,
+      "sim_time_s": 538.0,
+      "report_count": 3,
+      "checks": {
+        "all_arrived": true,
+        "semantic_reports_acknowledged": true,
+        "route_changes": 4
+      }
+    },
+    {
+      "experiment_id": "798f0209-b383-467a-95cf-d12f371b79ee",
+      "map_id": "gujarat_coastal",
+      "gui": false,
+      "sim_time_s": 1143.5,
+      "report_count": 3,
+      "checks": {
+        "all_arrived": true,
+        "semantic_reports_acknowledged": true,
+        "route_changes": 2
+      }
+    },
+    {
+      "experiment_id": "5077d483-3694-4469-b868-693c8d4d9a6c",
+      "map_id": "manipur_mantripukhri",
+      "gui": false,
+      "sim_time_s": 311.5,
+      "report_count": 3,
+      "checks": {
+        "all_arrived": true,
+        "semantic_reports_acknowledged": true,
+        "route_changes": 2
+      }
+    },
+    {
+      "experiment_id": "ba7b7ede-317c-4816-a30b-b3055faf760d",
+      "map_id": "manipur_mayangkhang",
+      "gui": false,
+      "sim_time_s": 577.5,
+      "report_count": 3,
+      "checks": {
+        "all_arrived": true,
+        "semantic_reports_acknowledged": true,
+        "route_changes": 2,
+        "no_feasible_route_before_clear": true
+      }
+    }
+  ],
+  "switch_test": {
+    "order": [
+      "Delhi",
+      "Gujarat",
+      "Mantripukhri",
+      "Mayangkhang",
+      "Delhi"
+    ],
+    "fresh_epochs": true,
+    "old_commands_rejected": true,
+    "unrelated_records_preserved": true,
+    "backend": "reviewed local API + actual SUMO"
+  },
+  "limitations": [
+    "Synthetic environmental incidents; historical satellite context",
+    "MEC envelope validation and expiration enforced by laptop bridge, not original server",
+    "Polling via SSH does not verify an actual 5G bearer",
+    "SUMO GUI full-run verification: Delhi; other full physical runs headless",
+    "DSM-derived gradients are approximate; some samples nodata or implausible"
+  ]
+}

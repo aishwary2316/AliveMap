@@ -75,6 +75,10 @@ class MecClient:
         payload = dict(event_id=self.prefix + "demo-road", vehicle_id="probe",
                        latitude=lat, longitude=lon, event_type=EVENT_TYPES[state],
                        severity={"warning": 0.7, "closed": 1.0, "clear": 0.0}[state])
+        return self.post_payload(payload)
+
+    def post_payload(self, payload):
+        """Shared acknowledged transport; retain the inspected six-field API."""
         self.attempted_report = True
         for attempt in range(3):
             try:

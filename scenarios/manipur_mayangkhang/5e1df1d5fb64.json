@@ -1,0 +1,132 @@
+{
+  "events": [
+    {
+      "kind": "landslide",
+      "sim_time_s": 1
+    },
+    {
+      "kind": "landslide",
+      "sim_time_s": 12
+    },
+    {
+      "kind": "clear",
+      "sim_time_s": 100
+    }
+  ],
+  "hazard": {
+    "anchor_edge": "430311013#0",
+    "facts": {},
+    "geometry": {
+      "coordinates": [
+        [
+          [
+            94.02354666887354,
+            25.273481151325694
+          ],
+          [
+            94.02353881997428,
+            25.273446650072884
+          ],
+          [
+            94.02351704794593,
+            25.27341750617379
+          ],
+          [
+            94.02348466738654,
+            25.273398156517636
+          ],
+          [
+            94.02344660793753,
+            25.273391546909327
+          ],
+          [
+            94.02340866379352,
+            25.273398683600135
+          ],
+          [
+            94.02337661159544,
+            25.2734184800961
+          ],
+          [
+            94.02335533099576,
+            25.273447922565392
+          ],
+          [
+            94.02334806177814,
+            25.273482528663802
+          ],
+          [
+            94.02335591062652,
+            25.2735170299282
+          ],
+          [
+            94.02337768263594,
+            25.273546173851337
+          ],
+          [
+            94.02341006321942,
+            25.27356552352989
+          ],
+          [
+            94.02344812272142,
+            25.273572133145837
+          ],
+          [
+            94.0234860669163,
+            25.273564996443433
+          ],
+          [
+            94.02351811913333,
+            25.27354519992342
+          ],
+          [
+            94.02353939970891,
+            25.273515757431735
+          ],
+          [
+            94.02354666887354,
+            25.273481151325694
+          ]
+        ]
+      ],
+      "type": "Polygon"
+    },
+    "kind": "landslide",
+    "source_type": "synthetic_scenario"
+  },
+  "label": "SYNTHETIC SCENARIO on real roads; no measured flood, landslide or traffic claim",
+  "map_build_id": "5e1df1d5fb64bafa176b68dbefa198c65cd09256fd581f656368adf5688fa12c",
+  "map_id": "manipur_mayangkhang",
+  "scenario_id": "manipur_mayangkhang_landslide",
+  "schema_version": "1.0",
+  "seed": 42,
+  "ttl_seconds": 1800,
+  "validation": {
+    "affected_edges": [
+      "-430311013#0",
+      "430311013#0"
+    ],
+    "baseline_feasible": true,
+    "blue_reroutes": false,
+    "largest_passenger_component_edges": 146,
+    "no_feasible_route": true,
+    "orange_route_differs_from_blue": false
+  },
+  "vehicles": {
+    "cautious": {
+      "destination": "1462815092#0",
+      "origin": "-1551211139",
+      "profile": "time_sensitive"
+    },
+    "standard": {
+      "destination": "1462815092#0",
+      "origin": "-1551211139",
+      "profile": "distance_focused"
+    },
+    "unaffected": {
+      "destination": "-44886092#0",
+      "origin": "-1551211151#1",
+      "profile": "distance_focused"
+    }
+  }
+}
