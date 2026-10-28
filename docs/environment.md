@@ -8,6 +8,9 @@
 | Server Python | 3.10.12 |
 | Existing application | FastAPI/H3 POC; source reviewed and imported into mec/baseline/ |
 | Listener | Uvicorn on 127.0.0.1:8765 |
+| Launch | POC .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8765, using its .venv Python |
+| Working directory | Existing POC project directory |
+| Process lifecycle | Current process belongs to a login-session scope; automatic restart/startup has not been verified |
 | Health | Successful response, service mec-av-poc |
 | Live API | GET /health, POST /hazards, GET /hazards |
 | H3 resolution | 10, computed by the actual source |
@@ -31,13 +34,14 @@ package metadata were read without modifying the server.
 
 ## Remaining discovery before deployment
 
-1. Determine the current API process's launch command, working directory and
-   service/startup configuration, without printing secret environment values.
+1. Launch command and working directory are verified. Establish restart/startup
+   behavior before deployment; the current process belongs to a login session.
 2. Identify any existing SUMO/controller work on the laptop's Ubuntu installation.
    No SUMO binary is currently on the Windows command search path. The previous
    experiment installed SUMO separately in an isolated environment.
-3. Establish forwarding that remains open during controller testing. The initial
-   inspection SSH sessions were one-shot commands and have completed.
+3. The user authenticated a persistent SSH connection, and its log reports the
+   local forwarding tunnel ready. A health request through that tunnel remains
+   unverified: this chat's restricted access blocked the local socket attempt.
 4. Verify the intended network path separately before claiming 5G measurements.
 5. Design an additive extension against the reviewed API; preserve existing
    application behavior and the other MEC workloads.

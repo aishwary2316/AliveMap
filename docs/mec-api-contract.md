@@ -58,8 +58,9 @@ loopback-only. This statement does not infer any external proxy configuration.
 4. Match reported coordinates to the actual simulation network's lane geometry.
    Never infer a road edge from cell membership alone.
 5. Keep separate routing state and route computation for every vehicle.
-6. Determine the API's current launch/lifecycle before planning a restart or
-   deployment. Its service-manager/startup configuration has not been inspected.
+6. The current command is the project environment's uvicorn main:app, bound to
+   127.0.0.1:8765 and launched from the POC directory. Its process belongs to a
+   login-session scope. Verify automatic startup/recovery before deployment.
 7. Confirm the actual laptop-to-MEC test path. Application health over SSH is
    not proof of a 5G user-plane path.
 

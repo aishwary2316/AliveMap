@@ -11,7 +11,8 @@ The reviewed original source and observed dependency versions are preserved in
 mec/baseline/. No remote application has been modified.
 
 See docs/mec-api-contract.md for the actual contract and its current limitations.
-The startup/lifecycle configuration and 5G traffic path remain unverified.
+The launch command and working directory are verified. Automatic startup/recovery
+and the 5G traffic path remain unverified.
 Do not deploy the older standalone experiment as the existing MEC application.
 
 ## Layout
