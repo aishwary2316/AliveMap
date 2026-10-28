@@ -45,8 +45,21 @@ class LabWorker(threading.Thread):
                 from fastapi.testclient import TestClient
                 from mec.baseline.main import app
                 factory = lambda: TestClient(app)
-            self.controller = ScenarioController(self.args, self.emit, http_factory=factory)
-            self.session = self.controller.activate(self.args.map_package, getattr(self.args, "scenario", None))
+            if getattr(self.args, "playground_scene", None) is not None:
+                from .playground_session import PlaygroundSession
+                http = None
+                if factory:
+                    from mec.playground_api import create_app
+                    baseline = factory()
+                    def bridge(payload):
+                        response = baseline.post("/hazards", json=payload)
+                        response.raise_for_status()
+                        return response.json()
+                    http = TestClient(create_app(bridge))
+                self.session = PlaygroundSession(self.args, self.emit, http=http)
+            else:
+                self.controller = ScenarioController(self.args, self.emit, http_factory=factory)
+                self.session = self.controller.activate(self.args.map_package, getattr(self.args, "scenario", None))
             self.emit("map_loaded", provider=self.session.provider, scenario=self.session.scenario)
         else:
             self.session = LiveSession(self.args, self.emit)
@@ -54,7 +67,7 @@ class LabWorker(threading.Thread):
         self.healthy, self.automatic, self.phase = True, armed, 0
         self.reviewed_changes = 0
         self.last_error = None
-        self.playing = automatic
+        self.playing = automatic and getattr(self.args, "playground_scene", None) is None
         self.last_poll = time.monotonic()
 
     def review_route_changes(self):
@@ -116,7 +129,15 @@ class LabWorker(threading.Thread):
                     elif action == "pause":
                         self.playing = False
                     elif self.session:
-                        if action == "play":
+                        if action == "edit":
+                            self.playing = False
+                            try:
+                                self.session.edit(*value)
+                                self.args.playground_scene = self.session.export_scene()
+                                self.emit("scene_changed", scenario=self.session.scenario)
+                            except (ValueError, KeyError, StopIteration) as exc:
+                                self.emit("edit_error", message="Edit rejected: "+str(exc))
+                        elif action == "play":
                             if not self.healthy:
                                 raise RuntimeError("Reconnect to MEC before advancing the simulation.")
                             self.playing = not self.session.complete

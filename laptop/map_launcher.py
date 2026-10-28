@@ -7,7 +7,7 @@ from pathlib import Path
 from tkinter import ttk
 
 from .lab import LabWorker
-from .map_canvas import MapCanvas, LABELS
+from .map_canvas import MapCanvas, LABELS, color_for, label_for
 from .route_minimap import RouteMiniMap
 from routing_core.maps import read_json
 
@@ -51,7 +51,7 @@ class MapLauncher:
         self.clock = tk.StringVar(value="SIM 00:00:00.0   |   WALL 00:00:00.0")
         self.comparison = tk.StringVar(value="Compare the same seeded trips with and without an incident.")
         self.wall_started, self.completed_runs = None, {}
-        self.status = tk.StringVar(value="Ready. Click a guided demo below to begin.")
+        self.status = tk.StringVar(value="Ready. Open playground tools to build a scenario, or choose a guided demo.")
         self.story = tk.StringVar(value="Real OSM roads. SUMO moves the vehicles; agents compute their own routes. Incidents are synthetic.")
         self.vehicle_detail = tk.StringVar(value="Track Blue, Orange or Green to inspect its actual position and intended path.")
         self.tile_status = tk.StringVar(value="Drag to pan · wheel or + / − to zoom · colored circles are vehicles")
@@ -61,13 +61,24 @@ class MapLauncher:
         root.minsize(950, 680)
         outer = ttk.Frame(root, padding=8)
         outer.pack(fill="both", expand=True)
-        controls = ttk.Frame(outer, padding=(6, 6, 12, 6), width=330)
-        controls.pack(side="left", fill="y")
-        controls.pack_propagate(False)
+        sidebar = ttk.Frame(outer, width=330)
+        sidebar.pack(side="left", fill="y")
+        sidebar.pack_propagate(False)
+        controls_scroll = tk.Canvas(sidebar, highlightthickness=0, width=310)
+        controls_bar = ttk.Scrollbar(sidebar, orient="vertical", command=controls_scroll.yview)
+        controls_bar.pack(side="right", fill="y")
+        controls_scroll.pack(side="left", fill="both", expand=True)
+        controls_scroll.configure(yscrollcommand=controls_bar.set)
+        controls = ttk.Frame(controls_scroll, padding=(6, 6, 8, 6))
+        controls_item = controls_scroll.create_window((0, 0), window=controls, anchor="nw")
+        controls.bind("<Configure>", lambda e: controls_scroll.configure(scrollregion=controls_scroll.bbox("all")))
+        controls_scroll.bind("<Configure>", lambda e: controls_scroll.itemconfigure(controls_item, width=e.width))
         view = ttk.Frame(outer)
         view.pack(side="left", fill="both", expand=True)
         ttk.Label(controls, text="AliveMap", font=("Segoe UI", 20, "bold")).pack(anchor="w")
         ttk.Label(controls, text="Synthetic incidents · real OSM roads", font=("Segoe UI", 9)).pack(anchor="w")
+        self.editor = None
+        ttk.Button(controls, text="Open playground tools…", command=self.open_playground).pack(fill="x", pady=4)
         ttk.Label(controls, text="Play guided demo", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(8, 4))
         for label, package_id in DEMOS.items():
             ttk.Button(controls, text="▶  "+label, command=lambda pid=package_id: self.quick_demo(pid)).pack(fill="x", pady=2)
@@ -114,6 +125,8 @@ class MapLauncher:
         root.protocol("WM_DELETE_WINDOW", self.close)
         root.after(80, self.poll)
         root.after(100, self.tick_clock)
+        if getattr(args, "playground", False):
+            root.after(150, self.open_playground)
 
     def combo(self, frame, label, variable, values):
         row = ttk.Frame(frame)
@@ -163,12 +176,21 @@ class MapLauncher:
         self.story.set("No automatic incident in this run. Apply one manually whenever you want." if incident_kind == "none" else
                        "Incident at t=20s, held until Clear. The overview retains old dashed paths; routing decisions pause for inspection.")
         options = {"mec_mode": "local" if self.mode.get().startswith("Local") else "physical", "gui": self.sumo_gui.get(),
-                   "incident_kind": incident_kind, "incident_at": 20, "pause_on_change": self.pause_on_change.get()}
+                   "incident_kind": incident_kind, "incident_at": 20, "pause_on_change": self.pause_on_change.get(), "playground_scene": None}
         self.worker.commands.put(("load", (str(path), None, options)))
         self.set_speed()
 
     def set_speed(self):
         self.worker.commands.put(("speed", float(self.speed.get().rstrip("x"))))
+
+    def open_playground(self):
+        if not self.editor:
+            from .playground_editor import PlaygroundEditor
+            self.editor = PlaygroundEditor(self)
+        self.editor.window.deiconify()
+        self.editor.window.lift()
+        if self.frame:
+            self.editor.update(self.frame)
 
     def tick_clock(self):
         if self.closing:
@@ -185,11 +207,15 @@ class MapLauncher:
         if frame["complete"]:
             self.completed_runs[(key, kind)] = {"counts": frame["reroute_counts"].copy(), "arrivals": frame["arrival_times"].copy()}
         clear = self.completed_runs.get((key, "none"))
-        text = "Without incident: "+("not run yet" if not clear else " / ".join(f"{LABELS[name]} {clock_text(t)}" for name, t in clear["arrivals"].items()))
-        counts = " / ".join(f"{LABELS[name]} {count}" for name, count in frame["reroute_counts"].items())
-        self.comparison.set(text+f"\nCurrent: {kind} · actual reroutes: {counts}"+ (" · no feasible route: "+", ".join(LABELS[n] for n in frame["blocked"]) if frame["blocked"] else ""))
+        text = "Without incident: "+("not run yet" if not clear else " / ".join(f"{label_for(name)} {clock_text(t)}" for name, t in clear["arrivals"].items()))
+        counts = " / ".join(f"{label_for(name)} {count}" for name, count in frame["reroute_counts"].items())
+        self.comparison.set(text+f"\nCurrent: {kind} · actual reroutes: {counts}"+ (" · no feasible route: "+", ".join(label_for(n) for n in frame["blocked"]) if frame["blocked"] else ""))
 
     def send(self, action, value=None):
+        if action == "report" and self.frame and self.frame.get("playground"):
+            self.open_playground()
+            self.editor.note.set("Select an anomaly here, then Publish operator incident or Clear selected. Add / update leaves it for vehicle detection.")
+            return
         self.worker.commands.put((action, value, self.epoch))
 
     def track(self, name):
@@ -204,18 +230,22 @@ class MapLauncher:
         if not self.frame or not self.provider:
             return
         name = self.canvas.selected
+        if name not in self.frame["vehicle_status"]:
+            self.vehicle_detail.set("Empty playground. Open tools to place vehicles, anomalies and simulated towers.")
+            self.profile.delete("all")
+            return
         state = self.frame["vehicles"].get(name)
         status = self.frame["vehicle_status"][name]
         if state:
             edge = self.provider.edges.get(state["edge"])
             road = (edge.get("name") or state["edge"]) if edge else state["edge"]
             osm = ", ".join(edge["osm_ids"]) if edge else "junction"
-            text = f"{LABELS[name]} · {state['speed']*3.6:.1f} km/h · {road} · OSM way {osm}\n"+self.frame["decisions"].get(name, "Following its initial computed route")
+            text = f"{label_for(name)} · {state['speed']*3.6:.1f} km/h · {road} · OSM way {osm}\n"+self.frame["decisions"].get(name, "Following its initial computed route")
             self.draw_profile(state["route"])
         else:
-            text = f"{LABELS[name]}: {status}. "+("Waiting for safe insertion; grey marker = spawn location." if status == "queued" else "Destination reached. Choose another vehicle or replay.")
+            text = f"{label_for(name)}: {status}. "+("Waiting for safe insertion; grey marker = spawn location." if status == "queued" else "Destination reached. Choose another vehicle or replay.")
             self.profile.delete("all")
-            self.profile.create_text(12, 20, anchor="w", text=LABELS[name]+": "+status)
+            self.profile.create_text(12, 20, anchor="w", text=label_for(name)+": "+status)
         self.vehicle_detail.set(text)
 
     def draw_profile(self, route):
@@ -243,7 +273,7 @@ class MapLauncher:
             while True:
                 update = self.worker.updates.get_nowait()
                 kind = update["kind"]
-                if kind in ("ready", "report", "decision", "snapshot", "error", "finished", "route_review") and update.get("message"):
+                if kind in ("ready", "report", "decision", "snapshot", "error", "finished", "route_review", "radio", "edit_error") and update.get("message"):
                     self.history.configure(state="normal")
                     self.history.insert("end", f"t={update.get('sim', 0):.1f}s · {update['message']}\n")
                     self.history.see("end")
@@ -273,6 +303,20 @@ class MapLauncher:
                     self.minimap.update_frame(update)
                     self.update_comparison(update)
                     self.show_vehicle()
+                    if self.editor:
+                        self.editor.update(update)
+                    if update.get("playground"):
+                        self.comparison.set("PLAYGROUND · vehicle perception → MEC H3 → tower-scoped delivery → individual routes")
+                elif kind == "scene_changed":
+                    self.scenario_data = update["scenario"]
+                    self.canvas.scenario = self.scenario_data
+                    if self.canvas.selected not in self.scenario_data["vehicles"]:
+                        self.canvas.selected = next(iter(self.scenario_data["vehicles"]), "")
+                    self.minimap.bounds, self.minimap.cache_key = None, None
+                elif kind == "edit_error":
+                    self.story.set(update["message"])
+                    if self.editor:
+                        self.editor.note.set(update["message"])
                 elif kind == "report":
                     self.story.set(update["message"]+"\nEach vehicle evaluates that same semantic fact independently.")
                 elif kind == "decision":
@@ -299,7 +343,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mec-url", default="http://127.0.0.1:18765")
     parser.add_argument("--semantics-url", default=None)
+    parser.add_argument("--playground-url", default="http://127.0.0.1:18767")
     parser.add_argument("--output", default="runs/maps")
+    parser.add_argument("--playground", action="store_true", help="Open the editable scenario tools on launch")
     args = parser.parse_args()
     args.gui, args.defer_start, args.map_package, args.scenario, args.mec_mode = False, True, None, None, "local"
     root = tk.Tk()

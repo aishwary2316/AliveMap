@@ -1,7 +1,10 @@
 """SUMO execution only: the routing core never imports this module."""
 from typing import Protocol
+import os
+import subprocess
 
 import traci
+from sumolib.miscutils import getFreeSocketPort
 
 from .network import binary
 
@@ -17,6 +20,7 @@ class SimulatorAdapter(Protocol):
 class SumoAdapter:
     def __init__(self):
         self.connection = None
+        self.process = None
 
     def load_map(self, provider, output, epoch, gui=False):
         self.provider = provider
@@ -25,13 +29,24 @@ class SumoAdapter:
                    "--tripinfo-output", str((output/"tripinfo.xml").resolve())]
         if gui:
             command += ["--start", "--quit-on-end", "true", "--window-size", "1200,800", "--window-pos", "20,20"]
-        traci.start(command, label=epoch)
+        port = getFreeSocketPort()
+        # Own the child process so Windows' headless simulator cannot open a
+        # blank console over the map. No global subprocess monkey patching.
+        self.process = subprocess.Popen(command+["--remote-port", str(port)],
+                                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+        try:
+            traci.init(port=port, label=epoch, proc=self.process)
+        except Exception:
+            self.process.terminate()
+            self.process.wait(timeout=10)
+            self.process = None
+            raise
         self.connection = traci.getConnection(epoch)
 
-    def spawn(self, vehicle, route, color):
+    def spawn(self, vehicle, route, color, position=0):
         self.provider.validate_route(route)
         self.connection.route.add(vehicle+"-initial", route)
-        self.connection.vehicle.add(vehicle, vehicle+"-initial", depart="0", departPos="base", departSpeed="0")
+        self.connection.vehicle.add(vehicle, vehicle+"-initial", depart="now", departPos=str(position), departSpeed="0")
         self.connection.vehicle.setColor(vehicle, color)
 
     def step(self):
@@ -62,3 +77,6 @@ class SumoAdapter:
         if self.connection:
             self.connection.close()
             self.connection = None
+        if self.process:
+            self.process.wait(timeout=10)
+            self.process = None

@@ -23,6 +23,15 @@ COLORS = {"cautious": "#2563eb", "standard": "#ea580c", "unaffected": "#059669"}
 LABELS = {"cautious": "Blue", "standard": "Orange", "unaffected": "Green"}
 
 
+def color_for(name):
+    palette = ("#9333ea", "#0891b2", "#db2777", "#b45309", "#475569", "#4f46e5")
+    return COLORS.get(name, palette[int(hashlib.sha256(name.encode()).hexdigest()[:8], 16) % len(palette)])
+
+
+def label_for(name):
+    return LABELS.get(name, name)
+
+
 def world_pixel(lon, lat, zoom):
     lat = max(-85.05112878, min(85.05112878, lat))
     scale = 256*2**zoom
@@ -107,6 +116,8 @@ class MapCanvas(tk.Canvas):
         self.store, self.tiles, self.pending, self.failed = TileStore(), {}, set(), {}
         self.photos, self.drag_origin, self.closed = {}, None, False
         self.wanted = set()
+        self.edit_callback, self.edit_points, self.edit_tool = None, [], None
+        self.show_cells, self.show_towers = True, True
         self.bind("<Configure>", lambda event: self.redraw())
         self.bind("<MouseWheel>", self.wheel)
         self.bind("<ButtonPress-1>", self.begin_drag)
@@ -116,9 +127,13 @@ class MapCanvas(tk.Canvas):
 
     def set_map(self, provider, scenario):
         self.provider, self.scenario, self.frame = provider, scenario, None
-        self.follow, self.selected = True, "cautious"
-        self.center = tuple(provider.edges[scenario["vehicles"]["cautious"]["origin"]]["shape_wgs84"][0])
-        self.zoom = min(17, self.source.max_zoom)
+        self.follow, self.selected = True, next(iter(scenario["vehicles"]), "")
+        if self.selected:
+            self.center = tuple(provider.edges[scenario["vehicles"][self.selected]["origin"]]["shape_wgs84"][0])
+            self.zoom = min(17, self.source.max_zoom)
+        else:
+            west, south, east, north = provider.manifest["bounds_wgs84"]
+            self.center, self.zoom = ((west+east)/2, (south+north)/2), 13
         self.redraw()
 
     def set_source(self, name):
@@ -136,6 +151,8 @@ class MapCanvas(tk.Canvas):
         self.redraw()
 
     def track(self, name):
+        if not self.scenario or name not in self.scenario["vehicles"]:
+            return
         self.selected, self.follow = name, True
         self.zoom = min(17, self.source.max_zoom)
         if self.frame and name in self.frame["vehicles"]:
@@ -151,6 +168,9 @@ class MapCanvas(tk.Canvas):
         if not self.scenario:
             return
         points = [xy for vehicle in self.scenario["vehicles"].values() for eid in (vehicle["origin"], vehicle["destination"]) for xy in self.provider.edges[eid]["shape_wgs84"]]
+        if not points:
+            west, south, east, north = self.provider.manifest["bounds_wgs84"]
+            points = [(west, south), (east, north)]
         west, east = min(p[0] for p in points), max(p[0] for p in points)
         south, north = min(p[1] for p in points), max(p[1] for p in points)
         self.center = ((west+east)/2, (south+north)/2)
@@ -174,7 +194,32 @@ class MapCanvas(tk.Canvas):
         self.change_zoom(1 if event.delta > 0 else -1)
 
     def begin_drag(self, event):
+        if self.edit_tool:
+            cx, cy = world_pixel(*self.center, self.zoom)
+            ll = pixel_lonlat(cx+event.x-self.winfo_width()/2, cy+event.y-self.winfo_height()/2, self.zoom)
+            self.edit_points.append(ll)
+            if self.edit_tool in ("point", "circle") or self.edit_tool == "rectangle" and len(self.edit_points) == 2:
+                self.finish_edit()
+            else:
+                self.redraw()
+            return
         self.drag_origin = (event.x, event.y, world_pixel(*self.center, self.zoom))
+
+    def start_edit(self, tool, callback):
+        self.edit_tool, self.edit_callback, self.edit_points, self.follow = tool, callback, [], False
+        self.configure(cursor="crosshair")
+        self.status("Click the map: "+tool+". Polygon: click vertices then Finish shape in tools. Cancel exits drawing.")
+
+    def finish_edit(self):
+        callback, points = self.edit_callback, list(self.edit_points)
+        self.cancel_edit()
+        if callback:
+            callback(points)
+
+    def cancel_edit(self):
+        self.edit_tool, self.edit_callback, self.edit_points = None, None, []
+        self.configure(cursor="")
+        self.redraw()
 
     def drag(self, event):
         if self.drag_origin:
@@ -249,7 +294,15 @@ class MapCanvas(tk.Canvas):
         if self.provider and self.frame:
             if not available:
                 self.draw_offline_roads()
+            self.draw_network()
             self.draw_live()
+        if self.edit_points:
+            coords = [v for ll in self.edit_points for v in self.screen(*ll)]
+            if len(coords) >= 4:
+                self.create_line(*coords, fill="#7c3aed", width=3, dash=(4, 3))
+            for ll in self.edit_points:
+                x, y = self.screen(*ll)
+                self.create_oval(x-4, y-4, x+4, y+4, fill="#7c3aed")
         self.create_rectangle(0, height-25, width, height, fill="white", outline="")
         self.create_text(8, height-13, text=self.source.attribution, anchor="w", font=("Segoe UI", 9), fill="#283745")
         metres_per_pixel = 156543.033928*math.cos(math.radians(self.center[1]))/2**self.zoom
@@ -258,7 +311,7 @@ class MapCanvas(tk.Canvas):
         self.create_line(12, height-40, 12+bar, height-40, fill="white", width=6)
         self.create_line(12, height-40, 12+bar, height-40, fill="#192d42", width=2)
         self.create_text(12, height-53, anchor="w", text=f"{distance:g} m", fill="#192d42", font=("Segoe UI", 9, "bold"))
-        self.create_text(width-10, 12, anchor="ne", text=f"Zoom {self.zoom} · {'Following '+LABELS[self.selected] if self.follow else 'Free map'}", font=("Segoe UI", 10, "bold"), fill="#162d46")
+        self.create_text(width-10, 12, anchor="ne", text=f"Zoom {self.zoom} · {'Following '+label_for(self.selected) if self.follow else 'Free map'}", font=("Segoe UI", 10, "bold"), fill="#162d46")
         if len(self.photos) > 220:
             self.photos = {key: photo for key, photo in self.photos.items() if key in self.tiles}
 
@@ -287,9 +340,9 @@ class MapCanvas(tk.Canvas):
             if len(points) > 1:
                 flat = [v for xy in points for v in xy]
                 self.create_line(*flat, fill="white", width=8)
-                self.create_line(*flat, fill=COLORS[name], width=4)
+                self.create_line(*flat, fill=color_for(name), width=4)
                 x, y = points[-1]
-                self.create_text(x, y-12, text=LABELS[name]+" destination", fill=COLORS[name], font=("Segoe UI", 10, "bold"))
+                self.create_text(x, y-12, text=label_for(name)+" destination", fill=color_for(name), font=("Segoe UI", 10, "bold"))
         for fact in frame.get("facts", []):
             geometries = [fact["geometry"]["coordinates"]] if fact["geometry"]["type"] == "Polygon" else fact["geometry"]["coordinates"]
             for coords in geometries:
@@ -304,7 +357,7 @@ class MapCanvas(tk.Canvas):
             x, y = self.screen(*ll)
             r = 11 if name == self.selected else 9
             self.create_oval(x-r-3, y-r-3, x+r+3, y+r+3, fill="white", outline="white")
-            marker = self.create_oval(x-r, y-r, x+r, y+r, fill=COLORS[name] if state else "white" if status == "arrived" else "#94a3b8", outline=COLORS[name], width=3)
+            marker = self.create_oval(x-r, y-r, x+r, y+r, fill=color_for(name) if state else "white" if status == "arrived" else "#94a3b8", outline=color_for(name), width=3)
             self.tag_bind(marker, "<Button-1>", lambda event, n=name: self.track(n))
             if state:
                 angle = math.radians(state.get("angle", 0))
@@ -314,10 +367,59 @@ class MapCanvas(tk.Canvas):
                          (x-forward[0]*5+right[0]*5, y-forward[1]*5+right[1]*5),
                          (x-forward[0]*5-right[0]*5, y-forward[1]*5-right[1]*5)]
                 self.create_polygon(*[v for point in arrow for v in point], fill="white", outline="")
-            text = f"{LABELS[name]} · {state['speed']*3.6:.0f} km/h" if state else LABELS[name]+" · "+status
-            offset = {"cautious": -38, "standard": -18, "unaffected": 18}[name]
+            text = f"{label_for(name)} · {state['speed']*3.6:.0f} km/h" if state else label_for(name)+" · "+status
+            offset = {"cautious": -38, "standard": -18, "unaffected": 18}.get(name, -24)
             self.create_text(x+17, y+offset+1, anchor="w", text=text, font=("Segoe UI", 11, "bold"), fill="white", width=220)
-            self.create_text(x+16, y+offset, anchor="w", text=text, font=("Segoe UI", 11, "bold"), fill=COLORS[name], width=220)
+            self.create_text(x+16, y+offset, anchor="w", text=text, font=("Segoe UI", 11, "bold"), fill=color_for(name), width=220)
+
+    def draw_network(self):
+        if not self.frame.get("playground"):
+            return
+        import h3
+        from shapely.geometry import Point
+        scene, network = self.frame["scene"], self.frame["network"]
+        if self.show_towers:
+            for tower in scene["towers"]:
+                xy = self.provider.lonlat_to_xy(tower["longitude"], tower["latitude"])
+                ring = Point(*xy).buffer(tower["radius_m"], quad_segs=24).exterior.coords
+                flat = [v for p in ring for v in self.screen(*self.provider.xy_to_lonlat(*p))]
+                self.create_polygon(*flat, fill="", outline="#7c3aed", dash=(6, 4), width=2)
+                x, y = self.screen(tower["longitude"], tower["latitude"])
+                self.create_line(x-7, y+10, x, y-12, x+7, y+10, fill="#6d28d9", width=3)
+                self.create_text(x+12, y-13, text=tower["id"]+" · simulated 5G", anchor="w", fill="#6d28d9", font=("Segoe UI", 10, "bold"))
+            for name, association in network.get("associations", {}).items():
+                vehicle = self.frame["vehicles"].get(name)
+                tower = next((t for t in scene["towers"] if t["id"] == association["tower_id"]), None)
+                if vehicle and tower:
+                    self.create_line(*self.screen(*vehicle["lonlat"]), *self.screen(tower["longitude"], tower["latitude"]), fill="#a78bfa", dash=(2, 5))
+        if self.show_cells:
+            # Display grid is computed locally; affected red cells are authoritative
+            # values returned by MEC. At broad zoom use the macro r8 grid.
+            res = 10 if self.zoom >= 15 else 8
+            cx, cy = world_pixel(*self.center, self.zoom)
+            corners = [pixel_lonlat(cx+dx, cy+dy, self.zoom) for dx, dy in
+                       [(-self.winfo_width()/2, -self.winfo_height()/2), (self.winfo_width()/2, -self.winfo_height()/2),
+                        (self.winfo_width()/2, self.winfo_height()/2), (-self.winfo_width()/2, self.winfo_height()/2)]]
+            polygon = {"type": "Polygon", "coordinates": [[*corners, corners[0]]]}
+            if self.zoom >= 11:
+                cells = h3.geo_to_cells(polygon, res)
+                for cell in list(cells)[:900]:
+                    flat = [v for lat, lon in h3.cell_to_boundary(cell) for v in self.screen(lon, lat)]
+                    self.create_polygon(*flat, fill="", outline="#94a3b8", width=1)
+            for record in network.get("incidents", []):
+                if record["status"] != "active":
+                    continue
+                for cell in record["h3_cells"][str(res)]:
+                    flat = [v for lat, lon in h3.cell_to_boundary(cell) for v in self.screen(lon, lat)]
+                    self.create_polygon(*flat, fill="#fca5a5", stipple="gray25", outline="#dc2626", width=2)
+        for anomaly in scene["anomalies"]:
+            flat = [v for ll in anomaly["geometry"]["coordinates"][0] for v in self.screen(*ll)]
+            published = self.frame.get("published", {}).get(anomaly["id"], 0) >= anomaly.get("event_version", 1)
+            shade = "#94a3b8" if anomaly.get("disabled") else "#dc2626" if published else "#d97706"
+            self.create_polygon(*flat, fill="", outline=shade, width=3, dash=() if published else (5, 4))
+            area = self.provider.geometry_to_xy(anomaly["geometry"]).centroid
+            x, y = self.screen(*self.provider.xy_to_lonlat(area.x, area.y))
+            self.create_text(x, y-18, text=anomaly["id"]+" · "+("cleared" if anomaly.get("disabled") else "MEC known" if published else "undetected ground truth"), fill=shade, font=("Segoe UI", 9, "bold"))
 
     def close(self):
         self.closed = True

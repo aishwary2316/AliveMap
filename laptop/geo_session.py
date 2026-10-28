@@ -18,6 +18,11 @@ class GeoSession(LiveSession):
         self.args, self.emit = args, emit
         self.provider = PackageMapProvider(args.map_package)
         self.scenario = read_json(getattr(args, "scenario", None) or self.provider.path/self.provider.manifest["scenario"])
+        if getattr(args, "playground_scene", None) is not None:
+            from routing_core.playground import validate_scene
+            self.scene = validate_scene(self.provider, args.playground_scene)
+            self.scenario = deepcopy(self.scenario)
+            self.scenario["vehicles"], self.scenario["events"] = self.scene["vehicles"], []
         validate_scenario(self.provider, self.scenario)
         self.scenario = deepcopy(self.scenario)
         self.incident_kind = getattr(args, "incident_kind", None)
@@ -31,7 +36,7 @@ class GeoSession(LiveSession):
         self.fleet = self.scenario["vehicles"]
         self.run_id = str(uuid4())
         self.network_id = self.provider.manifest["map_id"]
-        self.client = GeoMecClient(args.mec_url, self.run_id, self.network_id, http=http, semantics_url=args.semantics_url)
+        self.client = self.make_client(http)
         self.output = Path(args.output)/self.run_id
         self.output.mkdir(parents=True, exist_ok=True)
         self.log_file = (self.output/"events.jsonl").open("w", encoding="utf-8")
@@ -56,10 +61,11 @@ class GeoSession(LiveSession):
                 self.baseline[name] = route
                 self.planned_routes[name] = list(route)
                 self.route_history[name] = []
-                color = COLORS[name].lstrip("#")
-                self.adapter.spawn(name, route, tuple(int(color[i:i+2], 16) for i in (0, 2, 4)))
+                from .map_canvas import color_for
+                color = color_for(name).lstrip("#")
+                self.adapter.spawn(name, route, tuple(int(color[i:i+2], 16) for i in (0, 2, 4)), position=vehicle.get("position_m", 0))
             self.adapter.step()
-            if args.gui:
+            if args.gui and self.baseline:
                 points = [point for route in self.baseline.values() for eid in route for point in self.provider.edges[eid]["shape_xy"]]
                 xs, ys = zip(*points)
                 self.connection.gui.setBoundary("View #0", min(xs)-100, min(ys)-100, max(xs)+100, max(ys)+100)
@@ -71,6 +77,9 @@ class GeoSession(LiveSession):
         except Exception:
             self.close()
             raise
+
+    def make_client(self, http):
+        return GeoMecClient(self.args.mec_url, self.run_id, self.network_id, http=http, semantics_url=self.args.semantics_url)
 
     def refresh(self):
         snapshot = self.client.facts()

@@ -4,7 +4,8 @@ import tkinter as tk
 
 from shapely.geometry import box
 
-from .map_canvas import COLORS, LABELS
+from .map_canvas import COLORS, LABELS, color_for, label_for
+from .route_drawing import retired_runs
 
 
 def fit_transform(bounds, width, height, margin=14):
@@ -37,6 +38,9 @@ class RouteMiniMap(tk.Canvas):
         if self.bounds is None:
             paths = list(frame["baseline_routes"].values())
             points = [xy for path in paths for eid in path for xy in self.provider.edges[eid]["shape_xy"]]
+            if not points:
+                west, south, east, north = self.provider.manifest["bounds_wgs84"]
+                points = [self.provider.lonlat_to_xy(west, south), self.provider.lonlat_to_xy(east, north)]
             xs, ys = zip(*points)
             pad = max(150, math.hypot(max(xs)-min(xs), max(ys)-min(ys))*0.12)
             self.bounds = (min(xs)-pad, min(ys)-pad, max(xs)+pad, max(ys)+pad)
@@ -73,19 +77,21 @@ class RouteMiniMap(tk.Canvas):
             points = self.path(route, project)
             if len(points) >= 4:
                 # Small cartographic offsets keep both vehicles visible on shared roads.
-                offset = {"cautious": -2, "standard": 2, "unaffected": 0}[name]
+                offset = {"cautious": -2, "standard": 2, "unaffected": 0}.get(name, 0)
                 styled = [value+offset if i % 2 == 0 else value for i, value in enumerate(points)]
-                self.create_line(*styled, fill=COLORS[name], width=2, tags="overlay")
+                self.create_line(*styled, fill=color_for(name), width=2, tags="overlay")
         # Old Blue can share the road with current Orange: draw dashes above solids
         # so the historical path cannot be hidden by an unchanged vehicle's route.
         for name, records in frame["route_history"].items():
             for record in records[-4:]:
-                points = self.path(record["old"], project)
-                if len(points) >= 4:
-                    self.create_line(*points, fill=COLORS[name], width=2, dash=(5, 4), tags="overlay")
+                current = frame["driven_edges"][name] if name in frame["blocked"] else frame["planned_routes"][name]
+                for run in retired_runs(record["old"], current):
+                    points = self.path(run, project)
+                    if len(points) >= 4:
+                        self.create_line(*points, fill=color_for(name), width=2, dash=(5, 4), tags="overlay")
         for name, vehicle in frame["vehicles"].items():
             x, y = project(*vehicle["position"])
-            self.create_oval(x-4, y-4, x+4, y+4, fill=COLORS[name], outline="white", tags="overlay")
+            self.create_oval(x-4, y-4, x+4, y+4, fill=color_for(name), outline="white", tags="overlay")
             if name in frame["blocked"]:
                 self.create_text(x+6, y-8, text="STOP", anchor="w", fill="#be123c", font=("Segoe UI", 8, "bold"), tags="overlay")
         for fact in frame.get("facts", []):
@@ -95,5 +101,5 @@ class RouteMiniMap(tk.Canvas):
         self.create_rectangle(0, height-54, width, height, fill="#f8fafc", outline="", tags="overlay")
         self.create_text(8, height-43, anchor="w", text="ROUTE OVERVIEW · double-click to resize", font=("Segoe UI", 9, "bold"), tags="overlay")
         self.create_text(8, height-26, anchor="w", text="Grey roads · solid current · dashed old", font=("Segoe UI", 8), tags="overlay")
-        text = "  ".join(f"{LABELS[name]}: {count}" for name, count in frame["reroute_counts"].items())
+        text = "  ".join(f"{label_for(name)}: {count}" for name, count in frame["reroute_counts"].items())
         self.create_text(8, height-11, anchor="w", text="Reroutes · "+text, font=("Segoe UI", 8), tags="overlay")

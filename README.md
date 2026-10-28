@@ -5,6 +5,17 @@ FastAPI/H3 service on a physical MEC server.
 
 ## See and control it
 
+For custom experiments, double-click **Open AliveMap Playground.cmd**. Place
+vehicles on real directed roads, choose destinations/roles/profiles, draw multiple
+anomalies, and place simulated 5G towers. Vehicles detect and report anomalies;
+the selected MEC backend computes H3 areas and tower-scoped delivery, then each
+vehicle computes its own route. Scene save/load, live connectivity, H3 overlays,
+clocks and route-history inset are included. See the [playground guide](docs/playground.md)
+for the full controls and local/physical/radio distinctions.
+The playground extension is tested locally; its new physical-MEC endpoint must
+be started and verified separately. Earlier physical-MEC results below concern
+the existing guided controller, not an unverified playground deployment.
+
 For **real geographic maps**, double-click **Open AliveMap Maps.cmd**.
 Choose Delhi, Gujarat, or Manipur (Mantripukhri / Mayangkhang), then **Load / Start**.
 The native AliveMap viewer now uses sharp, zoomable **OSM Streets / Terrain** maps

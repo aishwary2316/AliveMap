@@ -1,0 +1,81 @@
+{
+  "recorded_at": "2026-10-28T22:19:49.707314+00:00",
+  "scope": "Local Windows SUMO and typed MEC backend; physical extension and RF are not verified",
+  "regression": {
+    "command": ".venv/Scripts/python.exe -m pytest -q --basetemp=.local/pytest-complete-playground --junitxml=.local/playground-tests.xml",
+    "tests": 56,
+    "failures": 0,
+    "errors": 0
+  },
+  "additional_editor_test": {
+    "command": ".venv/Scripts/python.exe -m pytest tests/test_playground_editor.py -q --basetemp=.local/pytest-playground-editor",
+    "passed": 1
+  },
+  "local_coverage": [
+    "four OSM map packages",
+    "real vehicle sensor proximity",
+    "original baseline API bridge acknowledgement",
+    "MEC area H3 r8/r10",
+    "per-vehicle knowledge and independent A*",
+    "driven detour and offline exclusion",
+    "coverage loss and buffered upload after tower added",
+    "multiple incidents, selected clear, TTL, deduplication, stale/conflicting versions",
+    "tower association and handover relevance",
+    "empty scene and dynamic vehicles/roles/towers/areas",
+    "Tk forms, map-click snapping, drawn shapes, scene save/load, epoch reset",
+    "retired contiguous route sections"
+  ],
+  "native_windows_example": {
+    "run_id": "505448ba-587a-49d8-9b79-e85a86ed3aa5",
+    "sim_time_s": 7.5,
+    "backend": "local",
+    "reporter": "probe",
+    "source_type": "simulated_perception",
+    "detection_upload_time_s": 7.5,
+    "tower": "Sim-gNB-1",
+    "affected_h3_counts": {
+      "8": 1,
+      "10": 1
+    },
+    "reroute_counts": {
+      "cautious": 1,
+      "standard": 0,
+      "unaffected": 0,
+      "probe": 0
+    },
+    "healthy": true,
+    "observed_controls": [
+      "load editable example",
+      "resume",
+      "pause on actual route change",
+      "OSM street map and H3 grid",
+      "actual moving vehicle markers",
+      "directed-road origin picked through map"
+    ]
+  },
+  "deployment": {
+    "original_api_health_observed": "ok, mec-av-poc",
+    "new_extension": "physical login/deployment not confirmed; physical playground integration remains pending",
+    "port": 8767,
+    "source_sha256": "741e69278b05c5cc507fee2a04f9f6c2c66bc8d153a6da8b4f46e53b105f6b55",
+    "original_application_files_changed": false,
+    "rf_ue_upf_verified": false,
+    "delivery_revision": 2,
+    "powershell_helper": "PowerShell parser validation passed; authenticated physical execution pending"
+  },
+  "limitations": [
+    "synthetic perception rather than camera/LiDAR",
+    "circular simulated tower coverage and HTTP polling rather than RF broadcast",
+    "wall-clock TTL and in-memory service",
+    "semantic areas do not model physical debris or flood dynamics",
+    "relocation uses remove plus a new vehicle ID",
+    "background street/terrain tiles require network; canonical roads are available offline"
+  ],
+  "final_targeted_suite": {
+    "command": ".venv/Scripts/python.exe -m pytest tests/test_playground.py tests/test_playground_editor.py -q --basetemp=.local/pytest-playground-release --junitxml=.local/playground-release-tests.xml",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}
