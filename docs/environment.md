@@ -45,7 +45,7 @@ package metadata were read without modifying the server.
 ## Local working setup
 
 The repository's .venv is separate from the earlier experiment's environment.
-requirements-dev.txt uses the observed MEC package versions plus local test tools. Installation is currently incomplete: repeated PyPI/package-host timeouts prevented downloading the matching H3 wheel. The new compatibility tests have not yet run.
+requirements-dev.txt uses the observed MEC package versions plus local test tools. Installation completed after package-download timeouts. All eight local compatibility tests pass, including an exact comparison with the observed live OpenAPI schema.
 Local tests run on Windows/Python 3.12; this does not substitute for validation on
 Ubuntu/Python 3.10 at the physical MEC.
 

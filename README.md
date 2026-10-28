@@ -32,7 +32,7 @@ verification Python: 3.12). From the repository root:
     python -m pip install -r requirements-dev.txt
     python -m pytest tests -q
 
-These tests run the reviewed source locally and do not contact the MEC.
+All eight compatibility tests passed locally with the observed library versions. These tests run the reviewed source locally and do not contact the MEC.
 
 This repository is public. Credentials, private access details and raw server
 output are excluded.
