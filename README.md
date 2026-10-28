@@ -7,11 +7,11 @@ FastAPI/H3 service on a physical MEC server.
 
 The repository was empty when cloned on 28 October 2026. Workspace setup is in
 progress. The existing MEC source has not yet been retrieved or inspected.
-SSH access was blocked locally before remote authentication. Environment
-discovery must complete before the experiment is adapted or deployed.
+Password-authenticated, read-only SSH discovery has now succeeded. Source and API
+contract inspection are still pending; the experiment must not be deployed yet.
 
-The existing working API and SSH forwarding are reported by the user; they have
-not yet been independently verified from this workspace.
+The physical MEC's OS, Python version, API listener and healthy API response have
+been independently verified. The 5G traffic path remains unverified.
 
 ## Layout
 
