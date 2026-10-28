@@ -1,45 +1,55 @@
 # Environment discovery
 
-## User-reported context, pending direct inspection
+## Directly verified on 28 October 2026
 
-| Component | Reported setup |
+| Component | Observation |
 | --- | --- |
-| Physical MEC | IIIT Manipur, Ubuntu 22.04 |
-| Existing API | FastAPI on loopback port 8765 |
-| Routes | GET /health, POST /hazards, GET /hazards |
-| Geographic indexing | H3 |
-| Laptop | Dual boot Ubuntu 24.04 / Windows 11 |
-| Access | SSH forwarding, with a supplied jump-host SSH command |
+| Physical MEC OS | Ubuntu 22.04.5 LTS |
+| Server Python | 3.10.12 |
+| Existing application | FastAPI/H3 POC; source reviewed and imported into mec/baseline/ |
+| Listener | Uvicorn on 127.0.0.1:8765 |
+| Health | Successful response, service mec-av-poc |
+| Live API | GET /health, POST /hazards, GET /hazards |
+| H3 resolution | 10, computed by the actual source |
+| Storage | Process-memory dictionary keyed by event_id |
+| Runtime packages | Observed in the POC .venv; recorded in mec/baseline/requirements-observed.txt |
+| Access | Both SSH hops worked using interactive password authentication |
+| Repository | AliveMap, initially empty; now the project source of record |
+| Local desktop | Windows; project test environment uses Python 3.12 |
 
-Actual addresses and usernames stay in ignored local SSH configuration.
+The actual API contract is documented in mec-api-contract.md. The source was
+reviewed for credentials before importing it. The source, schema and application
+package metadata were read without modifying the server.
 
-## Verified in this workspace
+## Still reported, rather than directly verified
 
-- AliveMap was cloned from the designated GitHub repository.
-- It initially had no commits or application source.
-- Git and Windows OpenSSH clients are available.
-- The previous standalone experiment passed local Windows/Python 3.12/SUMO 1.28
-  tests. This does not verify physical-MEC integration.
-- Password-authenticated SSH discovery through the jump host has succeeded.
-- The physical MEC runs Ubuntu 22.04.5 LTS and Python 3.10.12.
-- Uvicorn is listening on loopback port 8765.
-- GET /health responds successfully and identifies the service as mec-av-poc.
-- An existing POC application entrypoint was located. Its contents and API schema
-  still need inspection; no remote application has been changed.
+- The laptop also boots Ubuntu 24.04.
+- The intended deployment uses a 5G MEC communication path.
+- Existing laptop SSH forwarding worked in the earlier setup. A subsequent local
+  request to port 8765 did not respond within three seconds; no usable tunnel is
+  currently assumed by this workspace.
 
-## Discovery required before implementation
+## Remaining discovery before deployment
 
-1. Both SSH hops have worked through an interactive password-authenticated session.
-2. Identify the process/service listening on the existing API port.
-3. Locate its working directory, application source and Python environment.
-   Do not print environment-variable values or unrelated configuration.
-4. Inspect relevant source and the actual OpenAPI schema. Establish payload
-   fields, coordinate conventions, H3 version/resolution, persistence and
-   update/expiration behavior.
-5. Identify existing laptop code and SUMO installation, if any.
-6. Record a sanitized account of the actual request path and deployment.
-7. Review relevant source for secrets before importing it.
-8. Design the next increment against that verified baseline.
+1. Determine the current API process's launch command, working directory and
+   service/startup configuration, without printing secret environment values.
+2. Identify any existing SUMO/controller work on the laptop's Ubuntu installation.
+   No SUMO binary is currently on the Windows command search path. The previous
+   experiment installed SUMO separately in an isolated environment.
+3. Establish forwarding that remains open during controller testing. The initial
+   inspection SSH sessions were one-shot commands and have completed.
+4. Verify the intended network path separately before claiming 5G measurements.
+5. Design an additive extension against the reviewed API; preserve existing
+   application behavior and the other MEC workloads.
 
-Initial remote discovery is read-only. The experiment's separate API, companion
-port and database are proposals, not facts about the MEC or accepted decisions.
+## Local working setup
+
+The repository's .venv is separate from the earlier experiment's environment.
+requirements-dev.txt uses the observed MEC package versions plus local test tools. Installation is currently incomplete: repeated PyPI/package-host timeouts prevented downloading the matching H3 wheel. The new compatibility tests have not yet run.
+Local tests run on Windows/Python 3.12; this does not substitute for validation on
+Ubuntu/Python 3.10 at the physical MEC.
+
+Actual addresses, usernames, connection scripts and raw discovery output stay in
+ignored .local/. Passwords are entered into SSH and are not stored in Git.
+The previous standalone experiment remains under experiments/standalone-poc/;
+its separate API and database are not the existing MEC architecture.
