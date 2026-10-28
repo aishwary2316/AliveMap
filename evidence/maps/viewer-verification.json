@@ -1,0 +1,83 @@
+{
+  "recorded_at": "2026-10-28T20:26:00.246472+00:00",
+  "suite": {
+    "passed": 44,
+    "existing_regression_tests": 39,
+    "new_viewer_tests": 5
+  },
+  "guided_runs": [
+    {
+      "map_id": "manipur_mantripukhri",
+      "run_id": "09fdd6e7-c953-4d85-98e0-62ef532893bd",
+      "time": 311.5,
+      "arrived": [
+        "cautious",
+        "standard",
+        "unaffected"
+      ],
+      "complete": true,
+      "requested_speed": 100,
+      "mec_mode": "local"
+    },
+    {
+      "map_id": "delhi_urban",
+      "run_id": "21b8d56c-1a75-4c6d-abf8-e0aebc1ccecd",
+      "time": 538.0,
+      "arrived": [
+        "cautious",
+        "standard",
+        "unaffected"
+      ],
+      "complete": true,
+      "requested_speed": 100,
+      "mec_mode": "local"
+    },
+    {
+      "map_id": "manipur_mayangkhang",
+      "run_id": "24d08716-1ada-4aa0-ba67-40b9bb0bb17f",
+      "time": 577.5,
+      "arrived": [
+        "cautious",
+        "standard",
+        "unaffected"
+      ],
+      "complete": true,
+      "requested_speed": 100,
+      "mec_mode": "local"
+    },
+    {
+      "map_id": "gujarat_coastal",
+      "run_id": "d40bee8e-7c08-4f4b-b061-04004c16c9ec",
+      "time": 1143.5,
+      "arrived": [
+        "cautious",
+        "standard",
+        "unaffected"
+      ],
+      "complete": true,
+      "requested_speed": 100,
+      "mec_mode": "local"
+    }
+  ],
+  "native_UI_checks": [
+    "One-click Delhi demo starts real SUMO and local reviewed API",
+    "One-click Mayangkhang switches map and epoch",
+    "Blue and Orange visible with live speeds, direction arrows and intended route",
+    "Pause stops stepping",
+    "Green tracking centers vehicle and updates intended route",
+    "OpenTopoMap terrain contours and relief rendered",
+    "Arrived destination markers retained; queued vehicles labelled"
+  ],
+  "public_tile_fetch_checks": [
+    "OSM Streets 256x256 visible tile",
+    "OpenTopoMap Terrain 256x256 at zoom 16 and 17"
+  ],
+  "physical_MEC_this_viewer_test": false,
+  "limitations": [
+    "New guided/UI acceptance used explicit local API mode; earlier physical tests are separate",
+    "High-resolution satellite requires appropriate user provider credential; not yet configured or verified",
+    "Tile loading requires internet or cached responses; canonical OSM road fallback available",
+    "Requested time speed is a target; measured rate depends on CPU, rendering and HTTP latency",
+    "Elevation remains approximate Copernicus DSM; terrain context uses OpenTopoMap SRTM"
+  ]
+}

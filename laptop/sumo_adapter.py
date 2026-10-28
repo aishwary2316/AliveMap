@@ -45,6 +45,7 @@ class SumoAdapter:
         xy = vehicle.getPosition(vehicle_id)
         lonlat = self.connection.simulation.convertGeo(*xy)
         return {"position": xy, "lonlat": lonlat, "edge": vehicle.getRoadID(vehicle_id), "speed": vehicle.getSpeed(vehicle_id),
+                "angle": vehicle.getAngle(vehicle_id),
                 "route": list(vehicle.getRoute(vehicle_id))[max(0, vehicle.getRouteIndex(vehicle_id)):]}
 
     def apply_route(self, vehicle_id, edge_ids):

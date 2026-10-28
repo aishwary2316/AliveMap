@@ -5,6 +5,7 @@ import queue
 import threading
 import time
 import tkinter as tk
+import math
 from pathlib import Path
 from tkinter import ttk
 
@@ -24,6 +25,7 @@ class LabWorker(threading.Thread):
         self.delay, self.phase = 0.25, 0
         self.last_poll = 0
         self.last_error = None
+        self.speed, self.step_batch = 2.0, 1
 
     def emit(self, kind, **data):
         self.updates.put({"kind": kind, **data})
@@ -33,11 +35,18 @@ class LabWorker(threading.Thread):
         if self.session:
             self.session.close()
         self.session = None
-        self.emit("loading", message="Loading SUMO and checking physical MEC…")
+        backend = "local demo API" if getattr(self.args, "mec_mode", "physical") == "local" else "physical MEC"
+        self.emit("loading", message=f"Loading SUMO and checking {backend}…")
         if getattr(self.args, "map_package", None):
             from .geo_session import ScenarioController
-            self.controller = ScenarioController(self.args, self.emit)
+            factory = None
+            if getattr(self.args, "mec_mode", "physical") == "local":
+                from fastapi.testclient import TestClient
+                from mec.baseline.main import app
+                factory = lambda: TestClient(app)
+            self.controller = ScenarioController(self.args, self.emit, http_factory=factory)
             self.session = self.controller.activate(self.args.map_package, getattr(self.args, "scenario", None))
+            self.emit("map_loaded", provider=self.session.provider, scenario=self.session.scenario)
         else:
             self.session = LiveSession(self.args, self.emit)
         self.healthy, self.automatic, self.phase = True, automatic, 0
@@ -48,7 +57,8 @@ class LabWorker(threading.Thread):
     def publish(self):
         if self.session:
             frame = self.session.frame()
-            frame.update(playing=self.playing, automatic=self.automatic, healthy=self.healthy, last_error=self.last_error)
+            frame.update(playing=self.playing, automatic=self.automatic, healthy=self.healthy, last_error=self.last_error,
+                         requested_speed=self.speed, mec_mode=getattr(self.args, "mec_mode", "physical"))
             self.emit("frame", **frame)
             # Project-owned diagnostic snapshot; raw run logs remain ignored.
             path = self.session.output / "current.json"
@@ -74,7 +84,9 @@ class LabWorker(threading.Thread):
                     break
                 try:
                     if action == "load":
-                        self.args.map_package, self.args.scenario = value
+                        self.args.map_package, self.args.scenario = value[:2]
+                        for key, setting in (value[2] if len(value) > 2 else {}).items():
+                            setattr(self.args, key, setting)
                         self.reset(True)
                     elif action == "reset":
                         self.reset(False)
@@ -82,6 +94,10 @@ class LabWorker(threading.Thread):
                         self.reset(True)
                     elif action == "delay":
                         self.delay = max(0.01, float(value))
+                    elif action == "speed":
+                        self.speed = max(0.5, min(100, float(value)))
+                        self.step_batch = max(1, math.ceil(self.speed/20))
+                        self.delay = 0.5*self.step_batch/self.speed
                     elif action == "pause":
                         self.playing = False
                     elif self.session:
@@ -91,7 +107,7 @@ class LabWorker(threading.Thread):
                             self.playing = not self.session.complete
                         elif action == "report":
                             self.automatic = False
-                            self.emit("busy", message=f"Sending {value.upper()} to physical MEC…")
+                            self.emit("busy", message=f"Sending {value.upper()} to the selected MEC backend…")
                             self.session.report(value)
                             self.healthy = True
                         elif action in ("poll", "refresh"):
@@ -102,18 +118,21 @@ class LabWorker(threading.Thread):
                         elif action in ("step", "tick") and not self.session.complete:
                             if not self.healthy:
                                 raise RuntimeError("Reconnect to MEC before advancing the simulation.")
-                            self.session.step()
-                            timeline = self.session.scenario["events"] if hasattr(self.session, "scenario") else [
-                                {"sim_time_s": t, "kind": k} for t, k in zip((1, 45, 100), ("warning", "closed", "clear"))]
-                            if self.automatic and self.phase < len(timeline) and self.session.sim_time >= timeline[self.phase]["sim_time_s"]:
-                                self.session.report(timeline[self.phase]["kind"])
-                                self.phase += 1
+                            for _ in range(self.step_batch if action == "tick" else 1):
+                                if self.session.complete:
+                                    break
+                                self.session.step()
+                                timeline = self.session.scenario["events"] if hasattr(self.session, "scenario") else [
+                                    {"sim_time_s": t, "kind": k} for t, k in zip((1, 45, 100), ("warning", "closed", "clear"))]
+                                if self.automatic and self.phase < len(timeline) and self.session.sim_time >= timeline[self.phase]["sim_time_s"]:
+                                    self.session.report(timeline[self.phase]["kind"])
+                                    self.phase += 1
                             if time.monotonic() - self.last_poll >= 1:
                                 self.session.refresh()
                                 self.last_poll = time.monotonic()
                             if self.session.complete:
                                 self.playing = False
-                                self.emit("finished", message="All three vehicles arrived. Reset to explore again.")
+                                self.emit("finished", sim=self.session.sim_time, message="All three vehicles arrived. Reset to explore again.")
                     self.publish()
                 except Exception as exc:
                     self.playing, self.healthy = False, False

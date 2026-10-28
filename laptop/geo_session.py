@@ -124,7 +124,9 @@ class GeoSession(LiveSession):
         return {"time": self.sim_time, "state": self.state, "version": self.version, "run_id": self.run_id,
                 "map_id": self.network_id, "scenario_id": self.scenario["scenario_id"], "vehicles": vehicles,
                 "arrived": sorted(self.arrived), "decisions": self.decisions.copy(), "mapping": self.mapping,
-                "position": None, "hazard_edge": self.hazard_edge, "complete": self.complete}
+                "position": None, "hazard_edge": self.hazard_edge, "complete": self.complete,
+                "vehicle_status": {name: "arrived" if name in self.arrived else "active" if name in vehicles else "queued" for name in self.fleet},
+                "facts": [{"kind": fact.kind, "geometry": fact.geometry} for fact in self.facts]}
 
     def close(self):
         if self.client.attempted_report and self.state != "clear":

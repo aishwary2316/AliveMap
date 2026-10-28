@@ -7,9 +7,13 @@ FastAPI/H3 service on a physical MEC server.
 
 For **real geographic maps**, double-click **Open AliveMap Maps.cmd**.
 Choose Delhi, Gujarat, or Manipur (Mantripukhri / Mayangkhang), then **Load / Start**.
-SUMO opens with satellite context and computed vehicle routes. **Pause**, **Step**,
-and the incident controls let you inspect the live experiment. Keep the MEC SSH
-tunnel open. The previous grid lab remains available below.
+The native AliveMap viewer now uses sharp, zoomable **OSM Streets / Terrain** maps
+and visible live vehicle markers. **Play guided demo** has one button per location;
+**Blue / Orange / Green** follow a vehicle and its computed route. Playback supports
+**1x–100x** target speed, **Pause**, **Step**, and manual incidents. The default is an
+explicit **Local demo (no SSH)** mode; choose **Physical MEC (SSH)** for real-server
+messaging. SUMO runs the actual simulation behind the viewer; its own window is
+optional. [Viewer controls and satellite setup](docs/map-viewer.md).
 
 See the [Windows map-system runbook](docs/map-system.md) and
 [map-stage verification](evidence/maps/verification.json). Four offline packages

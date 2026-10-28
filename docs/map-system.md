@@ -1,5 +1,10 @@
 # Real geographic map system: Windows runbook
 
+**Viewer update:** use [the geographic viewer guide](map-viewer.md) for the current
+sharp street/terrain display, vehicle tracking, guided demos and speed controls.
+Local demo is now the explicit default; select Physical MEC for SSH integration.
+The native SUMO window and the older steps below remain available for diagnostics.
+
 Run commands from the AliveMap repository directory in PowerShell. The existing
 grid lab, original MEC API and read-only semantic view are preserved.
 
