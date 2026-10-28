@@ -1,0 +1,58 @@
+{
+  "run_id": "b4134a74-3d15-497b-9c64-7d3f165d96d0",
+  "mode": "local",
+  "semantic_counter_location": "laptop",
+  "network_id": "8fe2803c521cceaa65a3cfc8a43975bb8606d58bf358af4f16b42b75be31dcdd",
+  "arrived": [
+    "cautious",
+    "standard",
+    "unaffected"
+  ],
+  "reports_acknowledged": 3,
+  "last_version": 3,
+  "sim_seconds": 233.5,
+  "traversed": {
+    "cautious": [
+      "n0_2__n1_2",
+      "n1_2__n1_1",
+      "n1_1__n2_1",
+      "n2_1__n2_2",
+      "n2_2__n3_2",
+      "n3_2__n4_2",
+      "n4_2__n5_2"
+    ],
+    "standard": [
+      "n0_2__n1_2",
+      "n1_2__n2_2",
+      "n2_2__n2_1",
+      "n2_1__n3_1",
+      "n3_1__n3_2",
+      "n3_2__n4_2",
+      "n4_2__n5_2"
+    ],
+    "unaffected": [
+      "n0_5__n1_5",
+      "n1_5__n2_5",
+      "n2_5__n3_5",
+      "n3_5__n4_5",
+      "n4_5__n5_5"
+    ]
+  },
+  "teleports": 0,
+  "checks": {
+    "all_arrived": true,
+    "existing_mec_records_preserved": true,
+    "own_mec_record_is_clear": true,
+    "no_collisions_or_teleports": true,
+    "three_acknowledged_updates": true,
+    "cautious_avoids_warning": true,
+    "standard_keeps_warning_route": true,
+    "standard_avoids_closure": true,
+    "closure_absent_all_routes": true,
+    "clear_recomputed_for_both": true,
+    "cautious_drives_detour_during_warning": true,
+    "both_physically_drive_detours": true,
+    "unaffected_keeps_route": true
+  },
+  "passed": true
+}

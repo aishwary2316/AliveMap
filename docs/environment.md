@@ -39,17 +39,18 @@ package metadata were read without modifying the server.
 2. Identify any existing SUMO/controller work on the laptop's Ubuntu installation.
    No SUMO binary is currently on the Windows command search path. The previous
    experiment installed SUMO separately in an isolated environment.
-3. The user authenticated a persistent SSH connection, and its log reports the
-   local forwarding tunnel ready. A health request through that tunnel remains
-   unverified: this chat's restricted access blocked the local socket attempt.
+3. The user authenticated a persistent SSH connection. Forwarding and health are
+   now directly verified, as is an actual SUMO/controller run against the physical
+   API: all 13 checks passed. Keep its tunnel open during further testing.
 4. Verify the intended network path separately before claiming 5G measurements.
-5. Design an additive extension against the reviewed API; preserve existing
-   application behavior and the other MEC workloads.
+5. The additive read-only semantic view is implemented and locally tested. Its
+   guarded physical deployment and verification remain pending. It reads the
+   existing store without restarting the API or altering its environment.
 
 ## Local working setup
 
 The repository's .venv is separate from the earlier experiment's environment.
-requirements-dev.txt uses the observed MEC package versions plus local test tools. Installation completed after package-download timeouts. All eight local compatibility tests pass, including an exact comparison with the observed live OpenAPI schema.
+requirements-dev.txt uses the observed MEC package versions plus local test tools. Installation completed after package-download timeouts. All 19 local tests pass, including exact comparison with the observed live OpenAPI schema and checks for the actual client, mapping, routing and semantic view.
 Local tests run on Windows/Python 3.12; this does not substitute for validation on
 Ubuntu/Python 3.10 at the physical MEC.
 

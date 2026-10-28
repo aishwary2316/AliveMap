@@ -8,6 +8,7 @@ poc.env
 id_rsa*
 id_ed25519*
 .venv/
+.venv-*/
 venv/
 __pycache__/
 .pytest_cache/

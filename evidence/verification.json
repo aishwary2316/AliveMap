@@ -1,0 +1,37 @@
+{
+  "recorded_at_utc": "2026-10-28T15:12:17.674710+00:00",
+  "local_tests": {
+    "tests": 19,
+    "failures": 0,
+    "errors": 0
+  },
+  "runs": {
+    "local-direct": {
+      "passed": true,
+      "checks": 13,
+      "run_id": "b4134a74-3d15-497b-9c64-7d3f165d96d0"
+    },
+    "local-with-view": {
+      "passed": true,
+      "checks": 13,
+      "run_id": "d1a0e069-07b7-47ff-a04f-b3bc429252a2"
+    },
+    "physical-mec-direct": {
+      "passed": true,
+      "checks": 13,
+      "run_id": "024d7a77-ba7d-4593-9ab6-85e288d1122d"
+    }
+  },
+  "physical_mec_original_events_preserved": true,
+  "live_api_schema_unchanged": true,
+  "physical_mec_health": {
+    "status": "ok",
+    "service": "mec-av-poc",
+    "stored_events": 2
+  },
+  "observed_application_libraries_match_local": true,
+  "local_python": "3.12",
+  "physical_mec_python": "3.10.12",
+  "semantic_view_physical_deployment": "pending",
+  "five_g_user_plane_verified": false
+}
