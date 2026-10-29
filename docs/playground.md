@@ -1,10 +1,12 @@
 # Editable simulation playground
 
-Double-click **Open AliveMap Playground.cmd**. The normal Maps launcher also has
-**Open playground tools…**. Choose the map/subregion and backend in the main
-window before opening an **Empty playground** or **Load example**. Both start
-paused. All four existing OSM packages are supported. Street/terrain tiles remain
-the background; SUMO supplies the actual positions and directed roads.
+For the permanent physical MEC connection, double-click **Open AliveMap MEC.cmd**.
+For local mode, use **Open AliveMap Playground.cmd**. Both use the single-window
+workspace; the inspector is docked on the left with Vehicles/Incidents/Towers/Radio
+tabs, and diagnostics/playback sit below the map. See [current controls](workspace.md).
+The saved example opens paused. Choose the map/subregion at the bottom before
+Example or New. The following describes the engine workflow; button labels are
+compact and their full actions appear on hover.
 
 ## Build your own scenario
 
@@ -105,7 +107,14 @@ legitimately have no alternate path. Arrival/retained/no-route outcomes are show
 preserved baseline API on the laptop. It needs no SSH and is explicitly labelled
 local. H3 and delivery decisions execute in that backend, not the canvas.
 
-**Physical MEC** needs the additive `mec/playground_api.py` service on loopback
+**Current permanent Physical MEC:** the saved HTTPS endpoint runs the managed,
+authenticated persistent service. No forwarding window is required. See
+[permanent deployment](permanent-deployment.md).
+
+### Legacy foreground SSH deployment
+
+The following commands retain the earlier optional SSH arrangement, not the
+current default service. In that arrangement, **Physical MEC** needs the additive `mec/playground_api.py` service on loopback
 8767, forwarded to laptop 18767. It uses the existing FastAPI/Pydantic/H3
 environment and bridges to loopback8765. The original source, environment and
 existing live processes are preserved. The existing read-only view on8766 is

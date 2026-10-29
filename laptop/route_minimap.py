@@ -34,6 +34,12 @@ class RouteMiniMap(tk.Canvas):
         self.delete("all")
 
     def update_frame(self, frame):
+        # Rebuild the retained base on semantic route transitions as well as
+        # bounds changes. This invalidates the whole native canvas surface,
+        # keeping old paths/counters fresh during paused Windows presentation.
+        if self.frame and (self.frame['reroute_counts'] != frame['reroute_counts'] or
+                           self.frame.get('blocked') != frame.get('blocked')):
+            self.cache_key = None
         self.frame = frame
         if self.bounds is None:
             paths = list(frame["baseline_routes"].values())
@@ -103,3 +109,7 @@ class RouteMiniMap(tk.Canvas):
         self.create_text(8, height-26, anchor="w", text="Grey roads · solid current · dashed old", font=("Segoe UI", 8), tags="overlay")
         text = "  ".join(f"{label_for(name)}: {count}" for name, count in frame["reroute_counts"].items())
         self.create_text(8, height-11, anchor="w", text="Reroutes · "+text, font=("Segoe UI", 8), tags="overlay")
+        # Ask Tk to repaint the entire native child surface, including labels.
+        # Partial dirty rectangles can leave stale pixels on scaled Windows
+        # displays even though the underlying canvas items already changed.
+        self.configure(background='#f8fafc')

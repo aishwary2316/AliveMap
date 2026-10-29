@@ -27,6 +27,7 @@ class LabWorker(threading.Thread):
         self.last_error = None
         self.speed, self.step_batch = 2.0, 1
         self.reviewed_changes = 0
+        self.last_snapshot = 0
 
     def emit(self, kind, **data):
         self.updates.put({"kind": kind, **data})
@@ -88,7 +89,9 @@ class LabWorker(threading.Thread):
             self.emit("frame", **frame)
             # Project-owned diagnostic snapshot; raw run logs remain ignored.
             path = self.session.output / "current.json"
-            path.write_text(json.dumps(frame, indent=2), encoding="utf-8")
+            if time.monotonic()-self.last_snapshot >= 1 or not self.playing:
+                path.write_text(json.dumps(frame), encoding="utf-8")
+                self.last_snapshot = time.monotonic()
 
     def run(self):
         try:
@@ -98,9 +101,11 @@ class LabWorker(threading.Thread):
                     self.publish()
             except Exception as exc:
                 self.emit("error", message=str(exc))
+            tick_started = time.monotonic()
             while True:
                 try:
-                    command = self.commands.get(timeout=self.delay if self.playing else 1.0)
+                    wait = max(0, self.delay-(time.monotonic()-tick_started)) if self.playing else 1.0
+                    command = self.commands.get(timeout=wait)
                     action, value = command[:2]
                     if len(command) == 3 and command[2] != (self.session.run_id if self.session else None):
                         continue  # Commands captured for an old map cannot affect a new epoch.
@@ -108,8 +113,24 @@ class LabWorker(threading.Thread):
                     action, value = ("tick", None) if self.playing else ("poll", None)
                 if action == "stop":
                     break
+                if action in ('step','tick'):
+                    tick_started = time.monotonic()
                 try:
-                    if action == "load":
+                    if action == 'prepare_scene':
+                        from routing_core.maps import PackageMapProvider, read_json
+                        from routing_core.playground import example_scene, empty_scene
+                        path, example, options = value
+                        self.emit('loading',message='Preparing geographic map in background…')
+                        provider = PackageMapProvider(path)
+                        scene = example_scene(provider, read_json(provider.path/provider.manifest['scenario'])) if example else empty_scene(provider)
+                        self.args.map_package, self.args.scenario = str(provider.path), None
+                        self.args._prepared_provider = provider
+                        for key, setting in options.items():
+                            setattr(self.args,key,setting)
+                        self.args.playground_scene = scene
+                        self.reset(False)
+                    elif action == "load":
+                        self.args._prepared_provider = None
                         self.args.map_package, self.args.scenario = value[:2]
                         for key, setting in (value[2] if len(value) > 2 else {}).items():
                             setattr(self.args, key, setting)
@@ -151,6 +172,7 @@ class LabWorker(threading.Thread):
                                 self.session.refresh()
                                 self.healthy = True
                                 self.last_poll = time.monotonic()
+                                self.last_error = None
                         elif action in ("step", "tick") and not self.session.complete:
                             if not self.healthy:
                                 raise RuntimeError("Reconnect to MEC before advancing the simulation.")
@@ -166,12 +188,12 @@ class LabWorker(threading.Thread):
                                 self.review_route_changes()
                                 if not self.playing and action == "tick":
                                     break
-                            if time.monotonic() - self.last_poll >= 1:
+                            if not getattr(self.session, 'handles_network_poll', False) and time.monotonic() - self.last_poll >= 1:
                                 self.session.refresh()
                                 self.last_poll = time.monotonic()
                             if self.session.complete:
                                 self.playing = False
-                                self.emit("finished", sim=self.session.sim_time, message="All three vehicles arrived. Reset to explore again.")
+                                self.emit("finished", sim=self.session.sim_time, message="All vehicles arrived. Reset to explore again.")
                     self.review_route_changes()
                     self.publish()
                 except Exception as exc:
@@ -183,9 +205,13 @@ class LabWorker(threading.Thread):
                     except Exception:
                         pass
         finally:
-            if self.session:
-                self.session.close()
-            self.emit("stopped")
+            try:
+                if self.session:
+                    self.session.close()
+            except Exception as exc:
+                self.emit('cleanup_error',message='Could not confirm remote cleanup: '+str(exc))
+            finally:
+                self.emit('stopped')
 
 
 class Lab:

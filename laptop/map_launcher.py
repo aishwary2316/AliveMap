@@ -41,6 +41,9 @@ class MapLauncher:
     def __init__(self, root, args):
         self.root, self.worker = root, LabWorker(args)
         self.packages, self.epoch, self.closing = available_packages(), None, False
+        self.loading = False
+        self.ui_errors = []
+        root.report_callback_exception = self.callback_error
         self.frame, self.provider, self.scenario_data = None, None, None
         self.map = tk.StringVar(value="Delhi Urban")
         self.region, self.scenario = tk.StringVar(), tk.StringVar()
@@ -58,69 +61,10 @@ class MapLauncher:
         self.vehicle_detail = tk.StringVar(value="Track Blue, Orange or Green to inspect its actual position and intended path.")
         self.tile_status = tk.StringVar(value="Drag to pan · wheel or + / − to zoom · colored circles are vehicles")
         self.rate_sample = None
-        root.title("AliveMap - Geographic simulation")
-        root.geometry(f"{min(1280, root.winfo_screenwidth()-60)}x{min(850, root.winfo_screenheight()-80)}+20+20")
-        root.minsize(950, 680)
-        outer = ttk.Frame(root, padding=8)
-        outer.pack(fill="both", expand=True)
-        sidebar = ttk.Frame(outer, width=330)
-        sidebar.pack(side="left", fill="y")
-        sidebar.pack_propagate(False)
-        controls_scroll = tk.Canvas(sidebar, highlightthickness=0, width=310)
-        controls_bar = ttk.Scrollbar(sidebar, orient="vertical", command=controls_scroll.yview)
-        controls_bar.pack(side="right", fill="y")
-        controls_scroll.pack(side="left", fill="both", expand=True)
-        controls_scroll.configure(yscrollcommand=controls_bar.set)
-        controls = ttk.Frame(controls_scroll, padding=(6, 6, 8, 6))
-        controls_item = controls_scroll.create_window((0, 0), window=controls, anchor="nw")
-        controls.bind("<Configure>", lambda e: controls_scroll.configure(scrollregion=controls_scroll.bbox("all")))
-        controls_scroll.bind("<Configure>", lambda e: controls_scroll.itemconfigure(controls_item, width=e.width))
-        view = ttk.Frame(outer)
-        view.pack(side="left", fill="both", expand=True)
-        ttk.Label(controls, text="AliveMap", font=("Segoe UI", 20, "bold")).pack(anchor="w")
-        ttk.Label(controls, text="Synthetic incidents · real OSM roads", font=("Segoe UI", 9)).pack(anchor="w")
-        self.editor = None
-        ttk.Button(controls, text="Open playground tools…", command=self.open_playground).pack(fill="x", pady=4)
-        ttk.Label(controls, text="Play guided demo", font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(8, 4))
-        for label, package_id in DEMOS.items():
-            ttk.Button(controls, text="▶  "+label, command=lambda pid=package_id: self.quick_demo(pid)).pack(fill="x", pady=2)
-        self.map_box = self.combo(controls, "Map", self.map, list(GROUPS))
-        self.region_box = self.combo(controls, "Subregion", self.region, [])
-        self.scenario_box = self.combo(controls, "Scenario", self.scenario, [])
-        self.scenario_box.master.pack_forget()
-        self.combo(controls, "Incident", self.incident, list(INCIDENTS))
-        self.map_box.bind("<<ComboboxSelected>>", lambda e: self.select_map())
-        self.region_box.bind("<<ComboboxSelected>>", lambda e: self.select_region())
-        self.combo(controls, "MEC", self.mode, ["Local demo (no SSH)", "Physical MEC (HTTPS / SSH)"])
-        ttk.Checkbutton(controls, text="Also open native SUMO window", variable=self.sumo_gui).pack(anchor="w", pady=3)
-        self.button_row(controls, [("Run without incident", lambda: self.load("none")), ("Run with incident", self.load)])
-        self.button_row(controls, [("Pause", lambda: self.send("pause")), ("Resume", lambda: self.send("play"))])
-        self.button_row(controls, [("Step", lambda: self.send("step")), ("Reset", lambda: self.send("reset")), ("Reconnect", lambda: self.send("refresh"))])
-        ttk.Checkbutton(controls, text="Pause to inspect each route change", variable=self.pause_on_change,
-                        command=lambda: self.worker.commands.put(("review_mode", self.pause_on_change.get()))).pack(anchor="w")
-        box = self.combo(controls, "Time speed", self.speed, ["1x", "2x", "5x", "10x", "20x", "50x", "100x"])
-        box.bind("<<ComboboxSelected>>", lambda e: self.set_speed())
-        ttk.Label(controls, text="Follow vehicle + intended route", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(8, 2))
-        self.button_row(controls, [(label, lambda n=name: self.track(n)) for name, label in LABELS.items()])
-        self.button_row(controls, [("All routes / overview", self.overview), ("+", lambda: self.canvas.change_zoom(1)), ("−", lambda: self.canvas.change_zoom(-1))])
-        ttk.Label(view, textvariable=self.clock, font=("Segoe UI", 17, "bold")).pack(anchor="w", pady=3)
-        ttk.Label(view, textvariable=self.comparison, wraplength=850).pack(anchor="w")
-        ttk.Label(view, textvariable=self.status, wraplength=850).pack(anchor="w", pady=3)
-        self.canvas = MapCanvas(view, status=self.tile_status.set)
-        self.canvas.pack(fill="both", expand=True)
-        self.minimap = RouteMiniMap(self.canvas)
-        self.minimap.place(x=12, rely=1, y=-60, anchor="sw", width=340, height=220)
-        box = self.combo(controls, "Map layer", self.layer, list(self.canvas.sources))
-        box.bind("<<ComboboxSelected>>", lambda e: self.canvas.set_source(self.layer.get()))
-        self.button_row(controls, [("Apply selected", lambda: self.send("report", INCIDENTS[self.incident.get()])), ("Clear incident", lambda: self.send("report", "clear"))])
-        for variable in (self.story,):
-            ttk.Label(controls, textvariable=variable, wraplength=300, justify="left").pack(anchor="w", pady=8)
-        ttk.Label(view, textvariable=self.tile_status).pack(anchor="w", pady=3)
-        ttk.Label(view, textvariable=self.vehicle_detail, wraplength=850).pack(anchor="w", pady=3)
-        self.profile = tk.Canvas(view, height=85, background="#f7fafc", highlightthickness=0)
-        self.profile.pack(fill="x")
-        self.history = tk.Text(view, height=4, wrap="word", font=("Segoe UI", 9), background="#f1f5f9", relief="flat", state="disabled")
-        self.history.pack(fill="x", pady=4)
+        from .desktop_ui import build_workspace
+        build_workspace(self)
+        from .playground_editor import PlaygroundEditor
+        self.editor = PlaygroundEditor(self, parent=self.inspector)
         self.select_map()
         self.worker.start()
         self.set_speed()
@@ -128,14 +72,137 @@ class MapLauncher:
         root.after(80, self.poll)
         root.after(100, self.tick_clock)
         if getattr(args, "playground", False):
-            root.after(150, self.open_playground)
+            root.after(150, lambda: self.editor.open_scene(True))
+
+    def callback_error(self, kind, error, trace):
+        import traceback
+        self.ui_errors.append(str(error))
+        self.status.set('Interface error: '+str(error))
+        self.story.set('The error was recorded. Simulation controls remain available.')
+        self.worker.commands.put(('pause',None))
+        if hasattr(self,'history'):
+            self.history.configure(state='normal')
+            self.history.insert('end','UI ERROR · '+str(error)+'\n')
+            self.history.see('end');self.history.configure(state='disabled')
+        traceback.print_exception(kind,error,trace)
+
+    def connection_hint(self):
+        if not self.frame:
+            return 'MEC has not been checked. Load a scene to connect. Click to retry after loading.'
+        return ('Connected' if self.frame.get('healthy') else 'Disconnected / paused')+'\n'+self.frame.get('mec_endpoint', self.mode.get())+'\n'+(self.frame.get('last_error') or 'Click to reconnect / refresh. Tower coverage is simulated.')
+
+    def show_settings(self):
+        self.diagnostics.select(self.settings_page)
+
+    def toggle_play(self):
+        self.send('pause' if self.frame and self.frame.get('playing') else 'play')
+
+    def keyboard_play(self, event):
+        if event.widget.winfo_class() not in ('TEntry', 'TCombobox', 'Text', 'Entry'):
+            self.toggle_play()
+            return 'break'
+
+    def keyboard_step(self, event):
+        if event.widget.winfo_class() not in ('TEntry', 'TCombobox', 'Text', 'Entry'):
+            self.send('step')
+            return 'break'
+
+    def faster(self):
+        speeds = [1,2,5,10,20,50,100]
+        current = float(self.speed.get().rstrip('x'))
+        self.speed.set(str(next((s for s in speeds if s > current), 100))+'x')
+        self.set_speed()
+
+    def toggle_minimap(self):
+        if self.minimap.winfo_ismapped():
+            self.minimap.place_forget()
+        else:
+            self.minimap.place(x=12, rely=1, y=-62, anchor='sw', width=270, height=175)
+
+    def select_fleet_vehicle(self, name):
+        self.track(name)
+        if self.editor and self.editor.scene and name in self.editor.scene['vehicles']:
+            self.editor.vehicle_box.set(name)
+            self.editor.select_vehicle()
+
+    def new_vehicle(self):
+        self.open_playground()
+        self.editor.tabs.select(self.editor.vehicle_page)
+        names = self.editor.scene['vehicles'] if self.editor.scene else {}
+        index = 1
+        while 'vehicle-'+str(index) in names:
+            index += 1
+        self.editor.vehicle_box.set('')
+        self.editor.vehicle.set('vehicle-'+str(index))
+        self.editor.origin_edge.set(''); self.editor.destination_edge.set('')
+        self.editor.origin = self.editor.destination = None
+        self.canvas.pins = {}
+        self.canvas.redraw()
+        self.editor.note.set('New vehicle: place A origin and B destination pins, choose role, then Save vehicle.')
+
+    def render_fleet(self, expanded=None):
+        from .desktop_ui import Hint
+        if expanded is not None:
+            self.fleet_expanded = expanded
+        names = tuple(self.frame.get('vehicle_status', {})) if self.frame else ()
+        signature = (names, self.fleet_expanded, self.canvas.selected)
+        if signature == self.fleet_signature:
+            return
+        self.fleet_signature = signature
+        for child in self.fleet_panel.winfo_children():
+            child.destroy()
+        title = ttk.Button(self.fleet_panel, text='▾ Fleet' if self.fleet_expanded else '◉', width=14 if self.fleet_expanded else 3,
+            command=lambda: self.render_fleet(not self.fleet_expanded))
+        title.pack(fill='x'); Hint(title, 'Expand / collapse vehicle legend')
+        title.bind('<Enter>', lambda e: self.render_fleet(True), add='+')
+        for name in names:
+            row = ttk.Frame(self.fleet_panel); row.pack(fill='x')
+            label = '● '+label_for(name) if self.fleet_expanded else '●'
+            button = tk.Button(row, text=label, fg=color_for(name), bg='white' if name == self.canvas.selected else '#edf2f7',
+                relief='flat', borderwidth=0, font=('Segoe UI',10,'bold'), anchor='w', cursor='hand2',
+                command=lambda n=name: self.select_fleet_vehicle(n))
+            button.pack(side='left', fill='x', expand=True)
+            Hint(button, lambda n=name: n+' · '+(self.frame or {}).get('vehicle_status',{}).get(n,'')+'\nClick to follow and load vehicle settings')
+            if self.fleet_expanded:
+                gear = ttk.Button(row, text='⚙', width=2, command=lambda n=name: self.configure_vehicle(n))
+                gear.pack(side='right'); Hint(gear, 'Edit role, destination and routing profile')
+        add = ttk.Button(self.fleet_panel, text='+ Vehicle' if self.fleet_expanded else '+', width=3, command=self.new_vehicle)
+        add.pack(fill='x'); Hint(add, 'Add a vehicle to the playground')
+
+    def configure_vehicle(self, name):
+        self.select_fleet_vehicle(name)
+        if self.editor:
+            self.editor.tabs.select(self.editor.vehicle_page)
+
+    def draw_timeline(self):
+        canvas = self.timeline
+        canvas.delete('all')
+        width = max(80, canvas.winfo_width()-12)
+        elapsed = self.frame.get('time',0) if self.frame else 0
+        span = max(120, (int(elapsed/120)+1)*120)
+        canvas.create_line(4,12,width,12,fill='#cbd5e1',width=4)
+        end = 4+(width-4)*elapsed/span
+        canvas.create_line(4,12,end,12,fill='#2563eb',width=4)
+        if self.frame:
+            for records in self.frame.get('route_history',{}).values():
+                for record in records:
+                    x=4+(width-4)*record['sim_time']/span
+                    canvas.create_line(x,5,x,19,fill='#f59e0b',width=2)
+        canvas.create_oval(end-4,8,end+4,16,fill='#2563eb',outline='')
+        canvas.create_text(width,24,anchor='se',text=f'{elapsed:.1f} / {span:g} s',fill='#64748b',font=('Consolas',8))
 
     def combo(self, frame, label, variable, values):
         row = ttk.Frame(frame)
         row.pack(fill="x", pady=3)
         ttk.Label(row, text=label, width=10).pack(side="left")
-        box = ttk.Combobox(row, textvariable=variable, values=values, state="readonly", width=22)
+        box = ttk.Combobox(row, textvariable=variable, values=values, state="readonly", width=18)
         box.pack(side="left", fill="x", expand=True)
+        from .desktop_ui import Hint
+        Hint(box, {'Map':'Select a geographic map, then load an example or run a comparison.',
+            'Subregion':'Select the road extract within this map.',
+            'Incident':'Incident type for the guided comparison; playground incidents are edited at left.',
+            'MEC':'Local runs on this laptop. Physical sends reports to your configured MEC over HTTPS. Applies on next load.',
+            'Map layer':'Zoomable streets or topographic background.'}.get(label,label))
         return box
 
     def button_row(self, parent, buttons):
@@ -189,7 +256,6 @@ class MapLauncher:
         if not self.editor:
             from .playground_editor import PlaygroundEditor
             self.editor = PlaygroundEditor(self)
-        self.editor.window.deiconify()
         self.editor.window.lift()
         if self.frame:
             self.editor.update(self.frame)
@@ -223,6 +289,7 @@ class MapLauncher:
     def track(self, name):
         self.canvas.track(name)
         self.show_vehicle()
+        self.render_fleet()
 
     def overview(self):
         self.canvas.all_routes = True
@@ -272,12 +339,27 @@ class MapLauncher:
 
     def poll(self):
         try:
+            pending = []
             while True:
-                update = self.worker.updates.get_nowait()
+                try:
+                    pending.append(self.worker.updates.get_nowait())
+                except queue.Empty:
+                    break
+            # Coalesce only adjacent visual snapshots; lifecycle and log events
+            # retain ordering, and the simulation never skips a SUMO step.
+            updates = []
+            for item in pending:
+                if updates and item['kind'] == updates[-1]['kind'] == 'frame':
+                    updates[-1] = item
+                else:
+                    updates.append(item)
+            for update in updates:
                 kind = update["kind"]
-                if kind in ("ready", "report", "decision", "snapshot", "error", "finished", "route_review", "radio", "edit_error") and update.get("message"):
+                if kind in ("ready", "report", "decision", "snapshot", "error", "finished", "route_review", "radio", "edit_error", "cleanup_error", "busy") and update.get("message"):
                     self.history.configure(state="normal")
                     self.history.insert("end", f"t={update.get('sim', 0):.1f}s · {update['message']}\n")
+                    if int(self.history.index('end-1c').split('.')[0]) > 1200:
+                        self.history.delete('1.0', '201.0')
                     self.history.see("end")
                     self.history.configure(state="disabled")
                 if kind == "map_loaded":
@@ -303,6 +385,12 @@ class MapLauncher:
                         self.status.set(self.status.get()+' · '+update['mec_endpoint'])
                     if update.get("last_error"):
                         self.story.set("Paused: "+update["last_error"])
+                    self.play_button.configure(text='Ⅱ' if update['playing'] else '▶')
+                    self.loading = False
+                    self.connection_led.configure(text='● LOCAL' if update['mec_mode']=='local' else '● MEC',
+                        foreground='#059669' if update['healthy'] else '#dc2626', background='#d1fae5' if update['healthy'] else '#fee2e2')
+                    self.render_fleet()
+                    self.draw_timeline()
                     self.canvas.update_frame(update)
                     self.minimap.update_frame(update)
                     self.update_comparison(update)
@@ -326,8 +414,13 @@ class MapLauncher:
                 elif kind == "decision":
                     self.story.set(update["message"])
                 elif kind == "error":
+                    self.loading = False
                     self.status.set("Paused - "+update["message"])
+                    self.connection_led.configure(foreground='#ef4444')
                 elif kind in ("loading", "finished", "route_review"):
+                    if kind=='loading':
+                        self.loading = True
+                        self.connection_led.configure(foreground='#d97706',background='#fef3c7')
                     self.story.set(update["message"])
                 elif kind == "stopped" and self.closing:
                     self.canvas.close()

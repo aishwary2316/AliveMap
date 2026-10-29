@@ -16,7 +16,9 @@ from .sumo_adapter import SumoAdapter
 class GeoSession(LiveSession):
     def __init__(self, args, emit=lambda kind, **data: None, http=None):
         self.args, self.emit = args, emit
-        self.provider = PackageMapProvider(args.map_package)
+        prepared = getattr(args, '_prepared_provider', None)
+        self.provider = prepared if prepared and prepared.path == Path(args.map_package).resolve() else PackageMapProvider(args.map_package)
+        args._prepared_provider = None
         self.scenario = read_json(getattr(args, "scenario", None) or self.provider.path/self.provider.manifest["scenario"])
         if getattr(args, "playground_scene", None) is not None:
             from routing_core.playground import validate_scene

@@ -48,7 +48,7 @@ def verify(url, map_id, evidence=None):
         session = PlaygroundSession(args, emit)
         epoch = session.run_id
         result = {'recorded_at': datetime.now(timezone.utc).isoformat(), 'map_id': map_id,
-                  'backend': 'physical MEC over SSH HTTP forwarding', 'run_id': epoch,
+                  'backend': 'physical MEC over HTTPS' if url.startswith('https://') else 'physical MEC over SSH HTTP forwarding', 'run_id': epoch,
                   'service': health.json(), 'rf_ue_upf_verified': False}
         try:
             check('no incident published before perception', not session.network['incidents'])

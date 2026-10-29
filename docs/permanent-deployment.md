@@ -1,8 +1,9 @@
 # Permanent AliveMap connection
 
 The deployed API is **https://alivemap.aishtrex.com**. Double-click
-**Open AliveMap MEC.cmd**, choose **Load example** or **Empty playground**, then
-Resume. The main window displays the actual endpoint. The private laptop
+**Open AliveMap MEC.cmd**. The docked workspace loads an editable example paused;
+press Play below the map. New/Example and scene editing stay in the left inspector.
+See [workspace controls](workspace.md). The main window displays the actual endpoint. The private laptop
 configuration selects the HTTPS address and supplies its application credential.
 No SSH window, laptop port forward or Ubuntu jump VM is required for simulation.
 SSH remains an administrative setup/recovery tool.

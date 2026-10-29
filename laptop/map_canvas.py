@@ -117,16 +117,23 @@ class MapCanvas(tk.Canvas):
         self.photos, self.drag_origin, self.closed = {}, None, False
         self.wanted = set()
         self.edit_callback, self.edit_points, self.edit_tool = None, [], None
+        self.pins, self.pin_callback, self.pin_start, self.drag_pin = {}, None, None, None
+        self.on_vehicle_select = None
+        self._overlay_mode = True
+        self._tile_items = {}
+        self._grid_cache, self._boundary_cache = {}, {}
         self.show_cells, self.show_towers = True, True
         self.bind("<Configure>", lambda event: self.redraw())
         self.bind("<MouseWheel>", self.wheel)
         self.bind("<ButtonPress-1>", self.begin_drag)
         self.bind("<B1-Motion>", self.drag)
-        self.bind("<ButtonRelease-1>", lambda event: setattr(self, "drag_origin", None))
+        self.bind("<ButtonRelease-1>", self.end_drag)
         self.after(120, self.drain)
 
     def set_map(self, provider, scenario):
         self.provider, self.scenario, self.frame = provider, scenario, None
+        self.pins = {}
+        self._grid_cache.clear(); self._boundary_cache.clear()
         self.follow, self.selected = True, next(iter(scenario["vehicles"]), "")
         if self.selected:
             self.center = tuple(provider.edges[scenario["vehicles"][self.selected]["origin"]]["shape_wgs84"][0])
@@ -194,6 +201,14 @@ class MapCanvas(tk.Canvas):
         self.change_zoom(1 if event.delta > 0 else -1)
 
     def begin_drag(self, event):
+        for name, ll in self.pins.items():
+            x,y = self.screen(*ll)
+            if math.hypot(x-event.x,y-18-event.y) <= 16:
+                self.drag_pin = name
+                self.follow = False
+                if self.pin_start:
+                    self.pin_start()
+                return
         if self.edit_tool:
             cx, cy = world_pixel(*self.center, self.zoom)
             ll = pixel_lonlat(cx+event.x-self.winfo_width()/2, cy+event.y-self.winfo_height()/2, self.zoom)
@@ -221,7 +236,22 @@ class MapCanvas(tk.Canvas):
         self.configure(cursor="")
         self.redraw()
 
+    def end_drag(self, event):
+        self.drag_origin = None
+        if self.drag_pin:
+            name, self.drag_pin = self.drag_pin, None
+            point = self.pins[name]
+            if self.pin_callback:
+                self.pin_callback(name, point)
+            self.redraw()
+
     def drag(self, event):
+        if self.drag_pin:
+            cx,cy = world_pixel(*self.center,self.zoom)
+            self.pins[self.drag_pin] = pixel_lonlat(cx+event.x-self.winfo_width()/2,
+                cy+event.y+18-self.winfo_height()/2,self.zoom)
+            self.redraw()
+            return
         if self.drag_origin:
             x, y, (cx, cy) = self.drag_origin
             self.follow = False
@@ -266,10 +296,21 @@ class MapCanvas(tk.Canvas):
             self.redraw()
         self.after(120, self.drain)
 
+    def _create(self, itemType, args, kw):
+        # Keep downloaded tile items alive; only transient overlays are rebuilt.
+        # Tk image allocation/teardown otherwise dominates panning/following.
+        kw = dict(kw)
+        tags = kw.get('tags', ())
+        if isinstance(tags,str):
+            tags = (tags,)
+        kw['tags'] = (*tags, 'overlay' if getattr(self, '_overlay_mode', True) else 'tiles')
+        return super()._create(itemType,args,kw)
+
     def redraw(self):
         if self.closed or self.winfo_width() < 10:
             return
-        self.delete("all")
+        self.delete('overlay')
+        self._overlay_mode = False
         width, height = self.winfo_width(), self.winfo_height()
         cx, cy = world_pixel(*self.center, self.zoom)
         left, top = cx-width/2, cy-height/2
@@ -277,6 +318,8 @@ class MapCanvas(tk.Canvas):
         self.wanted = {(self.source.name, self.zoom, tx % 2**self.zoom, ty)
                        for tx in range(math.floor(left/256), math.floor((left+width)/256)+1)
                        for ty in range(math.floor(top/256), math.floor((top+height)/256)+1) if 0 <= ty < 2**self.zoom}
+        for key in set(self._tile_items)-self.wanted:
+            self.delete(self._tile_items.pop(key)[0])
         for tx in range(math.floor(left/256), math.floor((left+width)/256)+1):
             for ty in range(math.floor(top/256), math.floor((top+height)/256)+1):
                 if not 0 <= ty < 2**self.zoom:
@@ -287,15 +330,32 @@ class MapCanvas(tk.Canvas):
                     available += 1
                     if key not in self.photos:
                         self.photos[key] = ImageTk.PhotoImage(self.tiles[key])
-                    self.create_image(x, y, image=self.photos[key], anchor="nw")
+                    existing = self._tile_items.get(key)
+                    if existing and existing[1] == 'image':
+                        self.coords(existing[0],x,y)
+                    else:
+                        if existing:
+                            self.delete(existing[0])
+                        self._tile_items[key] = (self.create_image(x,y,image=self.photos[key],anchor='nw'),'image')
                 else:
-                    self.create_rectangle(x, y, x+256, y+256, outline="#d7dfe5")
+                    existing = self._tile_items.get(key)
+                    if existing:
+                        self.coords(existing[0],x,y,x+256,y+256)
+                    else:
+                        self._tile_items[key] = (self.create_rectangle(x,y,x+256,y+256,outline='#d7dfe5'),'placeholder')
                     self.request_tile(key)
+        self._overlay_mode = True
         if self.provider and self.frame:
             if not available:
                 self.draw_offline_roads()
             self.draw_network()
             self.draw_live()
+        for name, ll in self.pins.items():
+            x,y = self.screen(*ll)
+            color = '#2563eb' if name == 'origin' else '#db2777'
+            self.create_polygon(x-7,y-17,x+7,y-17,x,y,fill=color,outline='white',width=2)
+            self.create_oval(x-12,y-32,x+12,y-8,fill=color,outline='white',width=2)
+            self.create_text(x,y-20,text='A' if name == 'origin' else 'B',fill='white',font=('Segoe UI',10,'bold'))
         if self.edit_points:
             coords = [v for ll in self.edit_points for v in self.screen(*ll)]
             if len(coords) >= 4:
@@ -358,7 +418,7 @@ class MapCanvas(tk.Canvas):
             r = 11 if name == self.selected else 9
             self.create_oval(x-r-3, y-r-3, x+r+3, y+r+3, fill="white", outline="white")
             marker = self.create_oval(x-r, y-r, x+r, y+r, fill=color_for(name) if state else "white" if status == "arrived" else "#94a3b8", outline=color_for(name), width=3)
-            self.tag_bind(marker, "<Button-1>", lambda event, n=name: self.track(n))
+            self.tag_bind(marker, "<Button-1>", lambda event, n=name: self.select_vehicle(n))
             if state:
                 angle = math.radians(state.get("angle", 0))
                 forward = (math.sin(angle), -math.cos(angle))
@@ -371,6 +431,20 @@ class MapCanvas(tk.Canvas):
             offset = {"cautious": -38, "standard": -18, "unaffected": 18}.get(name, -24)
             self.create_text(x+17, y+offset+1, anchor="w", text=text, font=("Segoe UI", 11, "bold"), fill="white", width=220)
             self.create_text(x+16, y+offset, anchor="w", text=text, font=("Segoe UI", 11, "bold"), fill=color_for(name), width=220)
+
+    def select_vehicle(self, name):
+        if self.on_vehicle_select:
+            self.on_vehicle_select(name)
+        else:
+            self.track(name)
+
+    def cell_boundary(self, cell):
+        import h3
+        if cell not in self._boundary_cache:
+            self._boundary_cache[cell] = tuple((lon,lat) for lat,lon in h3.cell_to_boundary(cell))
+            if len(self._boundary_cache) > 6000:
+                self._boundary_cache.pop(next(iter(self._boundary_cache)))
+        return self._boundary_cache[cell]
 
     def draw_network(self):
         if not self.frame.get("playground"):
@@ -402,15 +476,28 @@ class MapCanvas(tk.Canvas):
                         (self.winfo_width()/2, self.winfo_height()/2), (-self.winfo_width()/2, self.winfo_height()/2)]]
             polygon = {"type": "Polygon", "coordinates": [[*corners, corners[0]]]}
             if self.zoom >= 11:
-                cells = h3.geo_to_cells(polygon, res)
-                for cell in list(cells)[:900]:
-                    flat = [v for lat, lon in h3.cell_to_boundary(cell) for v in self.screen(lon, lat)]
+                # Cache at tile boundaries rather than recomputing an H3 cover
+                # on every moving-vehicle frame. Limit output before drawing.
+                grid_key = (self.zoom, int(cx//256), int(cy//256), self.winfo_width(), self.winfo_height())
+                if grid_key not in self._grid_cache:
+                    west,north = pixel_lonlat((int(cx//256)-1)*256-self.winfo_width()/2,
+                        (int(cy//256)-1)*256-self.winfo_height()/2,self.zoom)
+                    east,south = pixel_lonlat((int(cx//256)+2)*256+self.winfo_width()/2,
+                        (int(cy//256)+2)*256+self.winfo_height()/2,self.zoom)
+                    cover = {'type':'Polygon','coordinates':[[[west,south],[east,south],[east,north],[west,north],[west,south]]]}
+                    area_km2 = abs((east-west)*(north-south))*111.32**2*math.cos(math.radians(self.center[1]))
+                    estimate = area_km2/h3.average_hexagon_area(res,unit='km^2')
+                    self._grid_cache[grid_key] = tuple(sorted(h3.geo_to_cells(cover,res))) if estimate < 2200 else ()
+                    if len(self._grid_cache)>12:
+                        self._grid_cache.pop(next(iter(self._grid_cache)))
+                for cell in self._grid_cache[grid_key][:1800]:
+                    flat = [v for lon, lat in self.cell_boundary(cell) for v in self.screen(lon, lat)]
                     self.create_polygon(*flat, fill="", outline="#94a3b8", width=1)
             for record in network.get("incidents", []):
                 if record["status"] != "active":
                     continue
                 for cell in record["h3_cells"][str(res)]:
-                    flat = [v for lat, lon in h3.cell_to_boundary(cell) for v in self.screen(lon, lat)]
+                    flat = [v for lon, lat in self.cell_boundary(cell) for v in self.screen(lon, lat)]
                     self.create_polygon(*flat, fill="#fca5a5", stipple="gray25", outline="#dc2626", width=2)
         for anomaly in scene["anomalies"]:
             flat = [v for ll in anomaly["geometry"]["coordinates"][0] for v in self.screen(*ll)]

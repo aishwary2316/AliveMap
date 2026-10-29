@@ -21,6 +21,7 @@ class SumoAdapter:
     def __init__(self):
         self.connection = None
         self.process = None
+        self._state_cache = {}
 
     def load_map(self, provider, output, epoch, gui=False):
         self.provider = provider
@@ -50,20 +51,29 @@ class SumoAdapter:
         self.connection.vehicle.setColor(vehicle, color)
 
     def step(self):
+        self._state_cache.clear()
         self.connection.simulationStep()
         if self.connection.simulation.getCollidingVehiclesNumber() or self.connection.simulation.getStartingTeleportNumber():
             raise RuntimeError("Unexpected collision or teleport")
         return self.connection.simulation.getTime()
 
     def vehicle_state(self, vehicle_id):
+        if vehicle_id in self._state_cache:
+            # Callers sometimes clear route for blocked display; never return
+            # the mutable cache object itself.
+            state = self._state_cache[vehicle_id]
+            return {**state, 'route': list(state['route'])}
         vehicle = self.connection.vehicle
         xy = vehicle.getPosition(vehicle_id)
         lonlat = self.connection.simulation.convertGeo(*xy)
-        return {"position": xy, "lonlat": lonlat, "edge": vehicle.getRoadID(vehicle_id), "speed": vehicle.getSpeed(vehicle_id),
+        state = {"position": xy, "lonlat": lonlat, "edge": vehicle.getRoadID(vehicle_id), "speed": vehicle.getSpeed(vehicle_id),
                 "angle": vehicle.getAngle(vehicle_id),
                 "route": list(vehicle.getRoute(vehicle_id))[max(0, vehicle.getRouteIndex(vehicle_id)):]}
+        self._state_cache[vehicle_id] = state
+        return {**state, 'route': list(state['route'])}
 
     def apply_route(self, vehicle_id, edge_ids):
+        self._state_cache.pop(vehicle_id, None)
         if edge_ids is None:
             self.connection.vehicle.setSpeed(vehicle_id, 0)
             return

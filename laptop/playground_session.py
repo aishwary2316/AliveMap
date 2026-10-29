@@ -1,5 +1,6 @@
 """Editable SUMO world with vehicle perception and per-vehicle MEC knowledge."""
 from copy import deepcopy
+import time
 from datetime import datetime, timedelta, timezone
 
 from shapely.geometry import Point
@@ -15,6 +16,10 @@ class PlaygroundSession(GeoSession):
     def __init__(self, args, emit=lambda kind, **data: None, http=None):
         self.knowledge, self.seen, self.detected, self.published = {}, {}, {}, {}
         self.network, self.radio_events, self.used_ids = {}, [], set()
+        self.handles_network_poll = True
+        self.last_network_wall = 0
+        self.last_upload_tick = {}
+        self._sensor_areas = {}
         super().__init__(args, emit, http)
         self.used_ids.update(self.fleet)
         self.run_condition = "playground"
@@ -41,6 +46,7 @@ class PlaygroundSession(GeoSession):
                 telemetry.append({"id": name, "longitude": ll[0], "latitude": ll[1], "role": self.fleet[name].get("role", "both")})
         previous = self.network
         self.network = self.client.tick(self.sim_time, telemetry)
+        self.last_network_wall = time.monotonic()
         for record in self.network["incidents"]:
             self.published[record["id"]] = max(self.published.get(record["id"], 0), record["observation"]["event_version"])
         for name, association in self.network["associations"].items():
@@ -130,7 +136,12 @@ class PlaygroundSession(GeoSession):
         for anomaly in self.scene["anomalies"]:
             if anomaly.get("disabled") or self.published.get(anomaly["id"], 0) >= anomaly.get("event_version", 1):
                 continue
-            area = self.provider.geometry_to_xy(anomaly["geometry"])
+            stamp = anomaly.get('event_version',1)
+            cached = self._sensor_areas.get(anomaly['id'])
+            if not cached or cached[0] != stamp:
+                cached = (stamp,self.provider.geometry_to_xy(anomaly['geometry']))
+                self._sensor_areas[anomaly['id']] = cached
+            area = cached[1]
             for name in active & self.fleet.keys():
                 if self.fleet[name].get("role", "both") not in ("reporter", "both"):
                     continue
@@ -147,18 +158,55 @@ class PlaygroundSession(GeoSession):
                     self.knowledge.setdefault(name, {})[anomaly["id"]] = fact
                     self.detected[key] = True
                     self.radio(f"{name}: detected {anomaly['id']}; upload queued until coverage", vehicle=name, incident=anomaly["id"], stage="detected")
+                # Outside coverage a buffered report retries only after new
+                # telemetry. A new observation always gets exact current
+                # telemetry before upload; no stale-position shortcuts.
+                tick = self.network.get('sim_time', -1)
+                if self.last_upload_tick.get(key) == tick:
+                    continue
+                association = self.network.get('associations', {}).get(name, {})
+                if not association.get('tower_id'):
+                    continue
+                if tick != self.sim_time:
+                    self.refresh()
+                self.last_upload_tick[key] = self.sim_time
                 if self.send_observation(anomaly, name, state["lonlat"]):
                     acknowledged = True
                     break
         return acknowledged
 
+    def radio_boundary_crossed(self):
+        # A cheap local prediction triggers immediate telemetry at coverage
+        # boundaries. Only the server's response authorizes upload/delivery.
+        from mec.playground_api import distance
+        active = set(self.connection.vehicle.getIDList()) & self.fleet.keys()
+        if active != set(self.network.get('associations', {})):
+            return True
+        for name in active:
+            if self.fleet[name].get('role', 'both') == 'offline':
+                continue  # MEC deliberately leaves offline vehicles unassociated.
+            ll = self.adapter.vehicle_state(name)['lonlat']
+            candidates = [(distance(ll, (t['longitude'],t['latitude'])),t['id'],t['radius_m']) for t in self.scene['towers']]
+            nearest = min(((d,tid) for d,tid,r in candidates if d<=r),default=(0,None))[1]
+            if nearest != self.network.get('associations',{}).get(name,{}).get('tower_id'):
+                return True
+        return False
+
     def step(self):
         super().step()
-        self.refresh()
+        # Physical HTTPS is paced by wall time, not a blocking round trip per
+        # 0.5 simulated seconds. Perception still runs at every SUMO step.
+        # Local mode preserves step-by-step deterministic delivery for tests.
+        if self.mec_mode_local or time.monotonic()-self.last_network_wall >= .25 or self.radio_boundary_crossed():
+            self.refresh()
         if self.detect():
             self.refresh()
         else:
             self.plan()
+
+    @property
+    def mec_mode_local(self):
+        return getattr(self.args, 'mec_mode', 'physical') == 'local'
 
     def edit(self, operation, payload):
         candidate = deepcopy(self.scene)

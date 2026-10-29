@@ -3,88 +3,48 @@
 5G MEC autonomous-routing proof of concept using SUMO, TraCI and an existing
 FastAPI/H3 service on a physical MEC server.
 
-## See and control it
+## Open the simulation
 
-For the permanent physical MEC connection, double-click **Open AliveMap MEC.cmd**.
-It uses the authenticated **https://alivemap.aishtrex.com** endpoint with no laptop
-SSH forward. A separate AliveMap Cloudflare tunnel and systemd services run on
-MEC, with persistent incident state. The pre-existing Cloudflare applications are
-preserved. See the [permanent deployment guide](docs/permanent-deployment.md).
+Double-click **Open AliveMap MEC.cmd** for your saved physical MEC connection.
+The redesigned workspace opens an editable example paused, with the inspector
+on the left, live map, playback timeline and a bottom tabbed console. Press Play
+or Space. Vehicles, incidents and towers are edited inside the same window.
+Hover icons for hints; click a vehicle in the floating legend to follow/configure
+it, or Plus to add one. Origin/destination pins can be dragged onto real roads.
+See the [workspace guide](docs/workspace.md) for all controls and current limits.
 
-For custom experiments, double-click **Open AliveMap Playground.cmd**. Place
-vehicles on real directed roads, choose destinations/roles/profiles, draw multiple
-anomalies, and place simulated 5G towers. Vehicles detect and report anomalies;
-the selected MEC backend computes H3 areas and tower-scoped delivery, then each
-vehicle computes its own route. Scene save/load, live connectivity, H3 overlays,
-clocks and route-history inset are included. See the [playground guide](docs/playground.md)
-for the full controls and local/physical/radio distinctions.
-The playground extension is now deployed on the physical MEC. Its Delhi SUMO
-run passed 15 checks: vehicle perception/reporting, MEC H3, individual delivery,
-offline exclusion, driven detours, all four arrivals, selected clearance and
-buffered upload after coverage returns. See [physical playground evidence](evidence/playground/physical-verification.json).
-Tower coverage/fan-out remain simulated; this does not verify RF/UE/UPF transport.
+**Open AliveMap Playground.cmd** selects the local backend in the same workspace.
+**Open AliveMap Maps.cmd** opens geographic comparisons. Select Delhi, Gujarat or
+Manipur (Mantripukhri / Mayangkhang). In Settings select Streets/Terrain and MEC.
+The bottom scenario icons run the seeded baseline or selected-incident case;
+New and Example open editable worlds. Backend changes apply on the next load.
+Legacy grid/lab launchers remain available for earlier experiments.
 
-For **real geographic maps**, double-click **Open AliveMap Maps.cmd**.
-Choose Delhi, Gujarat, or Manipur (Mantripukhri / Mayangkhang), then **Load / Start**.
-The native AliveMap viewer now uses sharp, zoomable **OSM Streets / Terrain** maps
-and visible live vehicle markers. **Play guided demo** has one button per location;
-**Blue / Orange / Green** follow a vehicle and its computed route. Playback supports
-**1x–100x** target speed, **Pause**, **Step**, and manual incidents. The default is an
-explicit **Local demo (no SSH)** mode; choose **Physical MEC (SSH)** for real-server
-messaging. SUMO runs the actual simulation behind the viewer; its own window is
-optional. [Viewer controls and satellite setup](docs/map-viewer.md).
+## Current verified status
 
-Use **Run without incident** and **Run with incident** to compare the same seeded
-trips. Choose congestion, flood or closure; the selected incident starts at 20
-simulated seconds and stays until **Clear incident**. A prominent simulation/wall
-clock and a racing-style inset retain solid current paths and dashed old paths.
-The default **Pause to inspect each route change** stops at a real routing decision;
-press **Resume** to watch the vehicle drive the computed detour.
+The independent authenticated endpoint is **https://alivemap.aishtrex.com**.
+No laptop SSH forwarding or Ubuntu jump VM is required for simulation. Its API,
+tunnel and baseline availability supervisor are enabled for boot; API crash
+recovery and saved incident recovery were tested without rebooting the host.
+The existing Cloudflare applications/configuration remain unchanged. Credentials
+stay in ignored private files. Browser requests without a key correctly get401.
+See the [deployment guide](docs/permanent-deployment.md).
 
-See the [Windows map-system runbook](docs/map-system.md) and
-[map-stage verification](evidence/maps/verification.json). Four offline packages
-were built locally from OSM, Copernicus GLO-30 and Sentinel-2. Heavy assets are
-excluded from Git; the runbook gives exact rebuild commands for another laptop.
+Real SUMO runs on OSM-derived directed networks. Vehicles perceive synthetic
+anomalies and send reports to physical MEC; MEC computes H3 and tower-scoped
+semantic delivery; each vehicle independently computes its own route. The
+physical Delhi test passed 15 checks, including a driven detour, offline exclusion,
+multiple incidents, selected clearance and buffering outside tower coverage.
+See [HTTPS evidence](evidence/deployment/workspace-https-verification.json).
+Towers and application fan-out are simulated; RF/UE/UPF transport is not verified.
 
-Double-click **Open AliveMap Lab.cmd** in this project folder, or run:
-
-    python -m laptop.lab
-
-The visible lab and native SUMO viewer open paused. Use **Play / Pause / Step**,
-report **Warning / Close / Clear**, and inspect **Vehicle decisions** and the
-live explanation log. Keep both SSH windows open. See the
-[hands-on guide](docs/visible-lab.md) for a first experiment.
-
-The detector events and road grid are synthetic. SUMO movement, per-vehicle route
-computation, reports to the physical MEC, and semantic-view responses are live.
-
-## Current status
-
-The laptop controller has completed a real SUMO run against the physical MEC's
-existing API through authenticated SSH forwarding. All 13 acceptance checks
-passed: three arrivals, independently computed and physically driven detours,
-three acknowledged semantic updates, and preservation of the original event.
-There were no collisions or teleports. The new test record ended in clear state.
-
-The physical MEC's source, schema, Python environment and launch command have
-been inspected. The original application source is preserved in mec/baseline/.
-Initial discovery preserved its source, environment and process. When its
-listener was later found absent, the guarded recovery helper started its
-unchanged source using the existing environment. No existing process was killed
-or replaced. The prior in-memory events were already lost; the recovered API
-started with an empty store. Automatic startup after reboot remains unconfigured.
-
-See docs/mec-api-contract.md for the actual contract and its current limitations.
-The launch command and working directory are verified. Automatic startup/recovery
-and the 5G traffic path remain unverified.
-The additive read-only semantic view is deployed on the physical MEC and its health
-and manual GUI warning/closure/clear flow are verified. It reads the original
-hazard store over HTTP without introducing a second store or replacing the API.
-The full arrival test used the original API directly; the view's physical evidence
-is a separate manual interaction test, not a second full arrival run.
-
-See [the runnable instructions](docs/run-poc.md) and [verification evidence](evidence/verification.json).
-Do not deploy the older standalone experiment as the existing MEC application.
+The paced-telemetry controller measured 11.59x the old per-step-telemetry throughput
+in one comparable 40-simulated-second headless HTTPS sample. This is not a 100x
+playback or GPU benchmark. See [benchmark](evidence/deployment/playback-benchmark.json).
+The full local regression run passed 67 tests; workspace integration is additionally
+tested with real Tk and SUMO. [Editing details](docs/playground.md) and
+[map build runbook](docs/map-system.md) cover reproducible setup. Large map assets
+are excluded from Git and must be rebuilt on a different laptop.
 
 ## Layout
 
@@ -107,7 +67,7 @@ verification Python: 3.12). From the repository root:
     python -m pip install -r requirements-dev.txt
     python -m pytest tests -q
 
-All 22 local tests pass with the observed application library versions. These tests
+The local suite exercises the observed application library versions. These tests
 do not contact the physical MEC. The separate physical-MEC run is recorded in evidence/.
 
 For the full laptop environment, install requirements-laptop.txt and run:

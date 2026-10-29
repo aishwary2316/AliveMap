@@ -1,3 +1,8 @@
+> The current single-window controls are documented in [workspace.md](workspace.md).
+> The earlier presentation walkthrough below retains historical button labels;
+> the same seeded comparisons are now compact bottom controls with hover hints.
+> Vehicle details and elevation moved to Current state; narration moved to Status.
+
 # Usable geographic demonstrations
 
 Open **Open AliveMap Maps.cmd**. The geographic viewer replaces the earlier blurry

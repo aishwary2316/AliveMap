@@ -27,40 +27,45 @@ def drawn_geometry(provider, tool, points, radius=50):
 
 
 class PlaygroundEditor:
-    def __init__(self, app):
-        self.app, self.window, self.scene = app, tk.Toplevel(app.root), None
+    def __init__(self, app, parent=None):
+        self.app, self.scene = app, None
+        self.embedded = parent is not None
+        self.window = parent if self.embedded else tk.Toplevel(app.root)
         self.epoch = None
         self.origin, self.destination, self.geometry, self.tower_point = None, None, None, None
-        self.window.title("AliveMap · Playground tools")
-        self.window.geometry("450x780+20+40")
-        self.window.protocol("WM_DELETE_WINDOW", self.window.withdraw)
-        scroll = tk.Canvas(self.window, highlightthickness=0)
-        bar = ttk.Scrollbar(self.window, orient="vertical", command=scroll.yview)
-        bar.pack(side="right", fill="y"); scroll.pack(fill="both", expand=True)
-        scroll.configure(yscrollcommand=bar.set)
-        self.window.bind("<MouseWheel>", lambda e: scroll.yview_scroll(-int(e.delta/120)*3, "units") if e.widget.winfo_class() != "TCombobox" else None)
-        self.body = ttk.Frame(scroll, padding=10)
-        item = scroll.create_window((0, 0), window=self.body, anchor="nw")
-        self.body.bind("<Configure>", lambda e: scroll.configure(scrollregion=scroll.bbox("all")))
-        scroll.bind("<Configure>", lambda e: scroll.itemconfigure(item, width=e.width))
-        self.note = tk.StringVar(value="Choose the map and MEC in the main window, then open a playground. Edits pause time.")
-        ttk.Label(self.body, textvariable=self.note, wraplength=390).pack(fill="x")
-        self.buttons([("Empty playground", lambda: self.open_scene(False)), ("Load example", lambda: self.open_scene(True))])
-        self.buttons([("Load scene…", self.load), ("Save scene…", self.save)])
-        self.buttons([("▶ Resume", lambda: app.send("play")), ("Pause", lambda: app.send("pause")), ("Step", lambda: app.send("step"))])
-        self.heading("Vehicles · click real directed roads")
+        if not self.embedded:
+            self.window.title('AliveMap · Playground tools')
+            self.window.geometry('400x760')
+            self.window.protocol('WM_DELETE_WINDOW', self.window.withdraw)
+        top = ttk.Frame(self.window, padding=6); top.pack(fill='x')
+        self.body = top
+        self.note = tk.StringVar(value="Load an example or create a scene")
+        ttk.Label(self.body, textvariable=self.note, wraplength=260).pack(fill="x")
+        self.buttons([('Empty playground',lambda: self.open_scene(False)),('Load example',lambda: self.open_scene(True)),
+            ('Load scene…',self.load),('Save scene…',self.save)])
+        self.tabs = ttk.Notebook(self.window)
+        self.tabs.pack(fill='both', expand=True)
+        self.vehicle_page = self.page('Vehicles')
+        self.heading('VEHICLE')
         self.vehicle = self.field("Vehicle ID", "vehicle-1")
-        self.vehicle_box = ttk.Combobox(self.body, state="readonly")
-        self.vehicle_box.pack(fill="x"); self.vehicle_box.bind("<<ComboboxSelected>>", self.select_vehicle)
+        vehicle_row = self.vehicle.widget.master
+        self.vehicle.widget.destroy()
+        self.vehicle_box = ttk.Combobox(vehicle_row,textvariable=self.vehicle,width=10,state='normal')
+        self.vehicle_box.pack(side='left',fill='x',expand=True)
+        self.vehicle.widget = self.vehicle_box
+        self.vehicle_box.bind('<<ComboboxSelected>>',self.select_vehicle)
+        from .desktop_ui import Hint
+        Hint(self.vehicle_box,'Select an existing vehicle, or use the fleet Plus to create a new ID.')
         self.role = self.field("Role", "both", ["both", "reporter", "receiver", "offline"])
         self.profile = self.field("Routing profile", "time_sensitive", list(PROFILES))
         self.buttons([("Pick origin", lambda: self.pick_road("origin")), ("Pick destination", lambda: self.pick_road("destination"))])
-        self.origin_edge = self.field("Origin road / direction", "", [])
-        self.destination_edge = self.field("Destination road / direction", "", [])
-        self.position = self.field("Spawn position (m)", "0")
+        self.origin_edge = self.field("Origin road", "", [])
+        self.destination_edge = self.field("Destination road", "", [])
+        self.position = self.field("Position (m)", "0")
         self.buttons([("Add / update", self.put_vehicle), ("Remove", lambda: self.edit("remove_vehicle", {"id": self.vehicle.get()})), ("Track", lambda: app.track(self.vehicle.get()))])
-        ttk.Label(self.body, text="Update role, profile or destination in place. To relocate, remove and use a new ID. Reporter senses; receiver listens; both does both; offline does neither.", wraplength=390).pack(fill="x")
-        self.heading("Anomalies · ground truth until detected")
+
+        self.anomaly_page = self.page("Incidents")
+        self.heading("INCIDENT")
         self.incident = self.field("Incident ID", "anomaly-1")
         self.incident_box = ttk.Combobox(self.body, state="readonly")
         self.incident_box.pack(fill="x"); self.incident_box.bind("<<ComboboxSelected>>", self.select_anomaly)
@@ -68,51 +73,89 @@ class PlaygroundEditor:
         self.radius = self.field("Circle radius (m)", "50")
         self.depth = self.field("Flood depth (m)", "0.25")
         self.ratio = self.field("Traffic speed ratio", "0.08")
-        self.ttl = self.field("MEC TTL (wall seconds)", "1800")
+        self.ttl = self.field("Lifetime (real s)", "1800")
         self.sensor = self.field("Sensor range (m)", "20")
         self.buttons([(tool.title(), lambda t=tool: self.draw(t)) for tool in ("circle", "rectangle", "polygon")])
         self.buttons([("Finish shape", app.canvas.finish_edit), ("Cancel drawing", app.canvas.cancel_edit)])
         self.buttons([("Add / update anomaly", self.put_anomaly), ("Remove", lambda: self.edit("remove_anomaly", {"id": self.incident.get()}))])
         self.buttons([("Publish operator incident", lambda: self.edit("publish", {"id": self.incident.get()})), ("Clear selected", lambda: self.edit("clear", {"id": self.incident.get()}))])
-        ttk.Label(self.body, text="Add leaves the anomaly hidden from receivers. A nearby reporting vehicle discovers it. Publish bypasses perception and is explicitly labelled operator injection.", wraplength=390).pack(fill="x")
-        self.heading("Simulated 5G towers · editable coverage")
+        ttk.Label(self.body, text="Add leaves the anomaly hidden from receivers. A nearby reporting vehicle discovers it. Publish bypasses perception and is explicitly labelled operator injection.", wraplength=260).pack(fill="x")
+        self.tower_page = self.page("Towers")
+        self.heading("SIMULATED 5G")
         self.tower = self.field("Tower ID", "Sim-gNB-1")
         self.tower_box = ttk.Combobox(self.body, state="readonly")
         self.tower_box.pack(fill="x"); self.tower_box.bind("<<ComboboxSelected>>", self.select_tower)
-        self.coverage = self.field("Coverage radius (m)", "1000")
+        self.coverage = self.field("Coverage (m)", "1000")
         self.buttons([("Pick tower position", self.pick_tower), ("Add / update", self.put_tower), ("Remove", lambda: self.edit("remove_tower", {"id": self.tower.get()}))])
         self.cells, self.towers = tk.BooleanVar(value=True), tk.BooleanVar(value=True)
         ttk.Checkbutton(self.body, text="Show H3 r8/r10 grid + MEC affected cells", variable=self.cells, command=self.overlays).pack(anchor="w")
         ttk.Checkbutton(self.body, text="Show towers, coverage + associations", variable=self.towers, command=self.overlays).pack(anchor="w")
-        self.heading("Live perception → MEC → delivery")
+        self.radio_page = self.page("Radio")
+        self.heading("PERCEPTION → MEC → DELIVERY")
         self.network_text = tk.StringVar(value="No playground loaded")
-        ttk.Label(self.body, textvariable=self.network_text, wraplength=390).pack(fill="x")
-        ttk.Label(self.body, text="Circular coverage and application fan-out are simulated. HTTP reaches the chosen backend; this is not proof of RF, UE or UPF transport.", wraplength=390).pack(fill="x", pady=8)
+        ttk.Label(self.body, textvariable=self.network_text, wraplength=260).pack(fill="x")
+        ttk.Label(self.body, text="Circular coverage and application fan-out are simulated. HTTP reaches the chosen backend; this is not proof of RF, UE or UPF transport.", wraplength=260).pack(fill="x", pady=8)
 
     def heading(self, text):
         ttk.Separator(self.body).pack(fill="x", pady=8)
-        ttk.Label(self.body, text=text, font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        ttk.Label(self.body, text=text, font=("Segoe UI", 9, "bold")).pack(anchor="w")
 
     def field(self, label, value, choices=None):
         variable = tk.StringVar(value=value)
         row = ttk.Frame(self.body); row.pack(fill="x", pady=2)
-        ttk.Label(row, text=label, width=23).pack(side="left")
-        widget = ttk.Entry(row, textvariable=variable) if choices is None else ttk.Combobox(row, textvariable=variable, values=choices, state="readonly")
+        ttk.Label(row, text=label, width=17).pack(side="left")
+        widget = ttk.Entry(row, textvariable=variable, width=10) if choices is None else ttk.Combobox(row, textvariable=variable, values=choices, state="readonly", width=10)
         widget.pack(side="left", fill="x", expand=True)
+        from .desktop_ui import Hint
+        Hint(widget, {'Role':'Reporter: senses/uploads. Receiver: listens. Both: both. Offline: neither.',
+            'Routing profile':'Each vehicle plans independently using this travel-time, clearance and risk policy.',
+            'Origin road':'Directed OSM road. A pin selects the location; choose the correct direction here.',
+            'Destination road':'Directed destination road. Drag the B pin to change it, then Save.',
+            'Lifetime (real s)':'Expiry in real seconds. Speeding the simulation does not speed MEC expiry.',
+            'Sensor range (m)':'How close a reporter must get to discover this synthetic anomaly.',
+            'Coverage (m)':'Synthetic circular tower coverage; this is not measured radio coverage.'}.get(label,label))
         variable.widget = widget
         return variable
 
+    def page(self, title):
+        page = ttk.Frame(self.tabs)
+        self.tabs.add(page, text=title)
+        canvas = tk.Canvas(page, highlightthickness=0, background='#edf2f7', width=270)
+        bar = ttk.Scrollbar(page, orient='vertical', command=canvas.yview)
+        bar.pack(side='right', fill='y'); canvas.pack(fill='both', expand=True)
+        canvas.configure(yscrollcommand=bar.set)
+        self.body = ttk.Frame(canvas, padding=6)
+        item = canvas.create_window(0,0,window=self.body,anchor='nw')
+        self.body.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+        canvas.bind('<Configure>', lambda e: canvas.itemconfigure(item,width=e.width))
+        def wheel(event):
+            if event.widget.winfo_class() != 'TCombobox' and str(event.widget).startswith(str(page)):
+                canvas.yview_scroll(-int(event.delta/120)*3, 'units')
+        self.window.bind('<MouseWheel>', wheel, add='+')
+        return page
+
     def buttons(self, pairs):
-        self.app.button_row(self.body, pairs)
+        from .desktop_ui import Hint
+        labels = {'Empty playground':'□ New', 'Load example':'✦ Example', 'Load scene…':'↥ Open', 'Save scene…':'↧ Save',
+            'Pick origin':'A Origin', 'Pick destination':'B Destination', 'Add / update':'✓ Save', 'Remove':'−', 'Track':'⌖',
+            'Add / update anomaly':'✓ Save area', 'Publish operator incident':'↑ Publish', 'Clear selected':'○ Clear',
+            'Pick tower position':'⌖ Place', 'Finish shape':'✓ Finish', 'Cancel drawing':'× Cancel'}
+        row = ttk.Frame(self.body); row.pack(fill='x',pady=3)
+        for label, action in pairs:
+            button=ttk.Button(row,text=labels.get(label,label),command=action,width=0)
+            button.pack(side='left',padx=2,fill='x',expand=True)
+            Hint(button,label)
 
     def guard(self, action):
         try:
             action()
         except Exception as exc:
             self.note.set(str(exc))
-            messagebox.showerror("Playground edit", str(exc), parent=self.window)
+            self.app.story.set(str(exc)) if hasattr(self.app, "story") else None
 
     def require(self):
+        if getattr(self.app,'loading',False):
+            raise ValueError('Wait for the new scene to finish loading')
         if not self.scene or not self.app.frame or not self.app.frame.get("playground"):
             raise ValueError("Open an empty playground or example first")
 
@@ -134,10 +177,12 @@ class PlaygroundEditor:
         def action():
             path = self.app.packages.get(self.app.region.get())
             if not path:
-                raise ValueError("Build the selected map first")
-            provider = PackageMapProvider(path)
-            scenario = read_json(path/provider.manifest["scenario"])
-            self.activate(provider, example_scene(provider, scenario) if example else empty_scene(provider))
+                raise ValueError('Build the selected map first')
+            options = {'incident_kind':'none', 'mec_mode':'local' if self.app.mode.get().startswith('Local') else 'physical',
+                'gui':self.app.sumo_gui.get(), 'pause_on_change':self.app.pause_on_change.get()}
+            self.app.worker.commands.put(('prepare_scene',(str(path),bool(example),options)))
+            self.note.set('Preparing map in background…')
+            self.app.canvas.cancel_edit()
         self.guard(action)
 
     def edit(self, operation, payload):
@@ -147,25 +192,44 @@ class PlaygroundEditor:
             self.note.set("Edit queued; simulation paused. Resume when ready.")
         self.guard(action)
 
+    def road_picked(self, which, point):
+        def action():
+            provider = self.app.provider
+            placement = road_placement(provider, point)
+            xy = Point(*provider.lonlat_to_xy(*point))
+            nearby = [provider.edge_ids[int(i)] for i in provider.tree.query(xy.buffer(50))]
+            candidates = sorted((provider.lines[eid].distance(xy), eid) for eid in nearby
+                if 'passenger' in provider.edges[eid]['allowed'] and provider.lines[eid].distance(xy) <= 50)
+            variable = self.origin_edge if which == 'origin' else self.destination_edge
+            variable.widget['values'] = [eid for _,eid in candidates[:12]]
+            variable.set(placement['edge'])
+            setattr(self, which, point)
+            if which == 'origin':
+                self.position.set(f"{placement['position_m']:.2f}")
+            self.sync_pins()
+            self.note.set(which.title()+' snapped to OSM road. Drag the pin to move it; choose direction below.')
+        self.guard(action)
+        self.sync_pins()
+
+    def sync_pins(self):
+        if not self.app.provider:
+            return
+        pins = {}
+        for which, variable in (('origin', self.origin_edge),('destination',self.destination_edge)):
+            edge = variable.get()
+            if edge in self.app.provider.edges:
+                line = self.app.provider.lines[edge]
+                position = float(self.position.get() or 0)/max(self.app.provider.edges[edge]['sumo_length_m'],1)*line.length if which == 'origin' else line.length
+                point = line.interpolate(min(position,line.length))
+                pins[which] = self.app.provider.xy_to_lonlat(point.x,point.y)
+        self.app.canvas.pins = pins
+        self.app.canvas.pin_callback = self.road_picked
+        self.app.canvas.pin_start = lambda: self.app.send('pause')
+        self.app.canvas.redraw()
+
     def pick_road(self, which):
-        def picked(points):
-            def action():
-                provider = self.app.provider
-                placement = road_placement(provider, points[0])
-                # Expose nearby directed road IDs; opposite directions may have
-                # different reachability and are never silently interchanged.
-                xy = Point(*provider.lonlat_to_xy(*points[0]))
-                candidates = sorted((line.distance(xy), eid) for eid, line in provider.lines.items()
-                                    if "passenger" in provider.edges[eid]["allowed"] and line.distance(xy) <= 50)
-                variable = self.origin_edge if which == "origin" else self.destination_edge
-                variable.widget["values"] = [eid for _, eid in candidates[:12]]
-                variable.set(placement["edge"])
-                setattr(self, which, points[0])
-                if which == "origin":
-                    self.position.set(f"{placement['position_m']:.2f}")
-                self.note.set(which.title()+" snapped to actual OSM road. Select another nearby road ID to change direction.")
-            self.guard(action)
-        self.guard(lambda: (self.require(), self.app.send("pause"), self.app.canvas.start_edit("point", picked)))
+        self.guard(lambda: (self.require(), self.app.send('pause'),
+            self.app.canvas.start_edit('point',lambda points: self.road_picked(which,points[0]))))
 
     def put_vehicle(self):
         def action():
@@ -181,6 +245,7 @@ class PlaygroundEditor:
             variable.widget["values"] = [vehicle[key]]; variable.set(vehicle[key])
         self.position.set(str(vehicle.get("position_m", 0)))
         self.role.set(vehicle.get("role", "both")); self.profile.set(vehicle["profile"])
+        self.sync_pins()
         self.app.track(name)
 
     def draw(self, tool):
@@ -233,7 +298,7 @@ class PlaygroundEditor:
         self.app.canvas.redraw()
 
     def update(self, frame):
-        self.scene = deepcopy(frame.get("scene"))
+        self.scene = frame.get("scene")
         if not self.scene:
             return
         self.vehicle_box["values"] = list(self.scene["vehicles"])
@@ -251,7 +316,7 @@ class PlaygroundEditor:
                 widget.set(records[0]["id"] if records else "")
                 if records:
                     select()
-            self.note.set("Playground ready. Edits pause time. Undetected areas are amber; MEC-acknowledged H3 cells are red.")
+            self.note.set("Ready · edits pause playback")
         associations = frame["network"].get("associations", {})
         lines = [f"{n}: {self.scene['vehicles'][n].get('role', 'both')} · {a['tower_id'] or 'NO COVERAGE'} · knows {', '.join(frame['knowledge'].get(n, [])) or 'none'}" for n, a in associations.items()]
         lines += [f"{e['sim_time']:.1f}s {e['message']}" for e in frame.get("radio_events", [])[-10:]]

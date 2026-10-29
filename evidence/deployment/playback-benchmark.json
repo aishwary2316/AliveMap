@@ -1,0 +1,25 @@
+{
+  "recorded_at": "2026-10-29T10:22:45.171915+00:00",
+  "backend": "physical MEC HTTPS",
+  "map": "delhi_urban",
+  "steps_per_run": 80,
+  "anomalies": 0,
+  "scope": "headless stepping; not GPU or UI FPS",
+  "per_step_telemetry": {
+    "wall_seconds": 27.152,
+    "simulated_seconds": 40.0,
+    "actual_speed": 1.47,
+    "telemetry_requests": 80,
+    "collisions": 0,
+    "teleports": 0
+  },
+  "paced_telemetry": {
+    "wall_seconds": 2.349,
+    "simulated_seconds": 40.0,
+    "actual_speed": 17.03,
+    "telemetry_requests": 4,
+    "collisions": 0,
+    "teleports": 0
+  },
+  "throughput_ratio": 11.59
+}

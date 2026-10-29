@@ -1,0 +1,28 @@
+{
+  "recorded_at": "2026-10-29T10:55:56.234257+00:00",
+  "local_regression": {
+    "tests": 67,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "workspace_checks": [
+    "single docked inspector",
+    "responsive mapped panes",
+    "pin hit-test, drag and road snapping",
+    "custom vehicle insertion and role",
+    "play/pause/step",
+    "typing does not trigger playback shortcuts",
+    "map switching",
+    "retained tile-item IDs",
+    "real reroute pause and current inset counter"
+  ],
+  "physical_MEC": {
+    "endpoint": "https://alivemap.aishtrex.com",
+    "checks_passed": 15,
+    "source": "workspace-https-verification.json"
+  },
+  "performance_source": "playback-benchmark.json",
+  "radio_path_verified": false,
+  "server_changes_in_this_stage": false
+}
