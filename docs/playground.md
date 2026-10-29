@@ -125,6 +125,20 @@ Optional `-SshConfig`, `-HostAlias` and `-LocalPort` parameters select another
 private SSH configuration/alias or local port. If the local port changes, launch
 the viewer with `--playground-url http://127.0.0.1:PORT`.
 
+If deployment reports connection refused on the original API's port8765, use:
+
+    powershell -ExecutionPolicy Bypass -File scripts\Start-PlaygroundMec.ps1 -RecoverBaseline
+
+Recovery first checks the reviewed source hash. Under a startup lock it leaves a
+healthy API running, refuses to duplicate an existing baseline process or replace
+an occupied listener, and starts the unchanged baseline with its existing Python
+environment only when absent. It checks health before continuing. Its detached
+process logs to `~/alivemap-playground/runtime/baseline-recovery.log`; this does
+not configure automatic startup after a server reboot. The original in-memory
+event store cannot be restored from a process that has already exited. Recovery
+does not install packages, edit the original source, stop processes, or change
+the existing 5G applications.
+
 This writes ignored `.local/deploy-playground.sh`. Pipe that script through the
 existing password-authenticated SSH configuration, forwarding18767→8767, as in
 the local `.local/deploy-playground.ps1` helper. The script checks the reviewed
