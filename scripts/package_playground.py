@@ -71,7 +71,7 @@ umask 077
 curl --noproxy '*' --fail --silent --show-error --max-time 5 http://127.0.0.1:8765/health
 "$legacy_dir/.venv/bin/python" -c 'import h3,fastapi,pydantic; assert hasattr(h3,"h3shape_to_cells_experimental"); print("Dependencies ready",h3.__version__)'
 umask 077
-deploy_dir="$HOME/alivemap-playground/{digest[:16]}"
+deploy_dir="$HOME/alivemap-playground/{digest[:16]}-utf8"
 mkdir -p "$deploy_dir"
 if test -f "$deploy_dir/playground_api.py"; then
     test "$(sha256sum "$deploy_dir/playground_api.py" | cut -d ' ' -f 1)" = '{digest}' || {{ echo 'STOP: existing extension differs'; exit 1; }}
@@ -79,7 +79,7 @@ else
     cat > "$deploy_dir/playground_api.py" <<'{delimiter}'
 {source}{delimiter}
 fi
-test "$(sha256sum "$deploy_dir/playground_api.py" | cut -d ' ' -f 1)" = '{digest}'
+test "$(sha256sum "$deploy_dir/playground_api.py" | cut -d ' ' -f 1)" = '{digest}' || {{ echo 'STOP: uploaded source checksum mismatch; check UTF-8 transport'; exit 1; }}
 echo 'Starting additive playground API on 127.0.0.1:8767. Original API is unchanged.'
 echo 'Keep this window open. Tower coverage is simulated; this process performs MEC H3 and delivery decisions.'
 exec env ALIVEMAP_LEGACY_URL=http://127.0.0.1:8765 "$legacy_dir/.venv/bin/python" -m uvicorn playground_api:app --app-dir "$deploy_dir" --host 127.0.0.1 --port 8767

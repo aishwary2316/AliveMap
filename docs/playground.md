@@ -107,8 +107,8 @@ local. H3 and delivery decisions execute in that backend, not the canvas.
 
 **Physical MEC** needs the additive `mec/playground_api.py` service on loopback
 8767, forwarded to laptop 18767. It uses the existing FastAPI/Pydantic/H3
-environment and bridges to loopback8765. The original application, source,
-environment and process are preserved. The existing read-only view on8766 is
+environment and bridges to loopback8765. The original source, environment and
+existing live processes are preserved. The existing read-only view on8766 is
 independent. The new service is an in-memory research process, not a persistent
 production service; restart makes old experiments invalid and pauses clients.
 
@@ -147,6 +147,12 @@ places a content-addressed copy in its own directory and starts foreground
 Uvicorn on loopback. It stops on conflicts and never kills an existing listener.
 Keep the SSH window open. No private addresses or passwords belong in Git.
 
+The Windows launcher explicitly reads UTF-8 before piping to SSH. Windows
+PowerShell's default ANSI decoding can corrupt Unicode source text and fail the
+remote checksum. The corrected uploader uses a fresh `-utf8` extension directory
+so an earlier failed copy is preserved instead of overwritten. A Windows native
+pipe regression test verifies that the uploaded Python bytes match exactly.
+
 Tower association and tower-scoped application fan-out are **simulated**. The
 transport is HTTP polling, including over SSH for physical mode. This is not RF
 broadcast or verified UE/gNB/UPF traffic. No existing 5G application is changed.
@@ -163,3 +169,17 @@ sensor proximity, typed MEC processing, the preserved hazard API, per-vehicle
 knowledge, driven detours, role/coverage exclusion, multiple incidents, selected
 clearance, expiry, scoped cleanup, dynamic edits and circle/rectangle/polygon
 conversion. These local tests do not count as physical-MEC or RF verification.
+
+With the physical playground SSH window open, run the separate real-server check:
+
+    .\.venv\Scripts\python.exe -u -m scripts.verify_physical_playground
+
+This uses the Delhi fixture and the real physical endpoint, verifies perception,
+legacy API acknowledgement, H3, offline exclusion, driven detours, all arrivals,
+multiple incidents, selected clearance and buffered reporting after coverage
+returns. After initial delivery it polls every ten simulation seconds while the
+vehicles drive using their received caches; the fixture does not change incidents
+during that phase. It clears its own records and closes its test experiments.
+Aggregate evidence goes to `evidence/playground/physical-verification.json` and
+raw run logs remain under ignored `runs/physical-playground`. This still does
+not verify an RF/UE/UPF path.

@@ -22,6 +22,6 @@ Write-Host 'Enter both SSH passwords. Keep this window open after Uvicorn starts
 Write-Host 'Adds loopback service 8767; original API 8765 and view 8766 are preserved.'
 if ($RecoverBaseline) { Write-Host 'If the reviewed original API is absent, starts its unchanged source. No existing process is stopped.' -ForegroundColor Yellow }
 $taskForward = "127.0.0.1:${LocalPort}:127.0.0.1:8767"
-Get-Content -LiteralPath (Join-Path $repoRoot '.local/deploy-playground.sh') -Raw |
+Get-Content -LiteralPath (Join-Path $repoRoot '.local/deploy-playground.sh') -Raw -Encoding UTF8 |
     & ssh -T -F $SshConfig -o ConnectTimeout=600 -o ExitOnForwardFailure=yes -L $taskForward $HostAlias 'bash -s'
 if ($LASTEXITCODE -ne 0) { throw 'SSH/deployment ended with an error. Read the message above; no existing listener is stopped.' }

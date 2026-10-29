@@ -12,9 +12,11 @@ the selected MEC backend computes H3 areas and tower-scoped delivery, then each
 vehicle computes its own route. Scene save/load, live connectivity, H3 overlays,
 clocks and route-history inset are included. See the [playground guide](docs/playground.md)
 for the full controls and local/physical/radio distinctions.
-The playground extension is tested locally; its new physical-MEC endpoint must
-be started and verified separately. Earlier physical-MEC results below concern
-the existing guided controller, not an unverified playground deployment.
+The playground extension is now deployed on the physical MEC. Its Delhi SUMO
+run passed 15 checks: vehicle perception/reporting, MEC H3, individual delivery,
+offline exclusion, driven detours, all four arrivals, selected clearance and
+buffered upload after coverage returns. See [physical playground evidence](evidence/playground/physical-verification.json).
+Tower coverage/fan-out remain simulated; this does not verify RF/UE/UPF transport.
 
 For **real geographic maps**, double-click **Open AliveMap Maps.cmd**.
 Choose Delhi, Gujarat, or Manipur (Mantripukhri / Mayangkhang), then **Load / Start**.
@@ -60,7 +62,11 @@ There were no collisions or teleports. The new test record ended in clear state.
 
 The physical MEC's source, schema, Python environment and launch command have
 been inspected. The original application source is preserved in mec/baseline/.
-Its code, environment and running process have not been changed or restarted.
+Initial discovery preserved its source, environment and process. When its
+listener was later found absent, the guarded recovery helper started its
+unchanged source using the existing environment. No existing process was killed
+or replaced. The prior in-memory events were already lost; the recovered API
+started with an empty store. Automatic startup after reboot remains unconfigured.
 
 See docs/mec-api-contract.md for the actual contract and its current limitations.
 The launch command and working directory are verified. Automatic startup/recovery

@@ -55,13 +55,14 @@
   },
   "deployment": {
     "original_api_health_observed": "ok, mec-av-poc",
-    "new_extension": "physical login/deployment not confirmed; physical playground integration remains pending",
+    "new_extension": "Deployed and verified against physical MEC; see physical-verification.json (15 passing checks)",
     "port": 8767,
     "source_sha256": "741e69278b05c5cc507fee2a04f9f6c2c66bc8d153a6da8b4f46e53b105f6b55",
     "original_application_files_changed": false,
     "rf_ue_upf_verified": false,
     "delivery_revision": 2,
-    "powershell_helper": "PowerShell parser validation passed; authenticated physical execution pending"
+    "powershell_helper": "Windows PowerShell UTF-8 native-pipe checksum verified; authenticated deployment and absent-baseline recovery succeeded",
+    "baseline_recovery": "Guarded startup of unchanged baseline after listener absent; user terminal reported initial empty in-memory event store"
   },
   "limitations": [
     "synthetic perception rather than camera/LiDAR",
