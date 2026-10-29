@@ -54,6 +54,21 @@ mapped so a delayed/hidden launch cannot accidentally collapse the map. Hints
 appear on buttons and form fields. No GPU driver settings or OS power settings
 are changed.
 
+The workspace adapts to 16:9 and 16:10 windows. The inspector reserves enough
+width for its forms, the bottom panel sizes to its controls, and the map takes
+the remaining space. The log search moves to a second row when needed. Help
+text wraps, long region names use an ellipsis with a full-text hint, and the
+route overview stays inside the map. Splitter choices are retained during
+resizing within usable limits for the current session.
+
+`tests/test_responsive_workspace.py` checks real Tk widget geometry at ten
+viewport/text-scale combinations, including 1920x1080, 1920x1200, 1280x720,
+1280x800 and a 1024x640 effective viewport. It also exercises repeated resizing,
+every inspector tab, Settings, the log toolbar and splitter retention, with
+text enlarged up to 150%. These are window geometry and simulated text-scaling
+checks; moving the running window between physical monitors with different DPI
+settings still needs a manual check on that monitor pair.
+
 ## Place and edit
 
 1. Load Example or create New in the left inspector.

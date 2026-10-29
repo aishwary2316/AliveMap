@@ -31,18 +31,39 @@ class LogConsole(ttk.Frame):
         self.follow=tk.BooleanVar(value=True)
         self.count=tk.StringVar(value='0 events')
         self.timer=None
-        bar=ttk.Frame(self);bar.pack(fill='x',pady=(0,3))
-        select=ttk.Combobox(bar,textvariable=self.filter,values=['All events','Network','Routes','Errors','System'],state='readonly',width=12)
-        select.pack(side='left',padx=(0,6))
-        Hint(select,'Filter by event category')
+        bar=self.bar=ttk.Frame(self);bar.pack(fill='x',pady=(0,3))
+        filter_host=ttk.Frame(bar)
+        select=ttk.Combobox(filter_host,textvariable=self.filter,values=['All events','Network','Routes','Errors','System'],state='readonly',width=12)
+        select.pack(fill='x');Hint(select,'Filter by event category')
+        search_host=ttk.Frame(bar)
         from .ui_icons import icon_image
-        ttk.Label(bar,image=icon_image(bar,'search',t.MUTED)).pack(side='left',padx=(0,4))
-        self.search=ttk.Entry(bar,textvariable=self.query,width=18)
-        self.search.pack(side='left',fill='x',expand=True)
+        search_host.columnconfigure(1,weight=1)
+        ttk.Label(search_host,image=icon_image(bar,'search',t.MUTED)).grid(row=0,column=0,padx=(0,4))
+        self.search=ttk.Entry(search_host,textvariable=self.query,width=12)
+        self.search.grid(row=0,column=1,sticky='ew')
         Hint(self.search,'Search event text, vehicle ID or incident ID')
-        ttk.Checkbutton(bar,text='Follow',variable=self.follow,command=self.scroll_end).pack(side='left',padx=6)
-        icon(bar,'trash',self.clear,'Clear the local log view; simulation and MEC records are unchanged')
-        ttk.Label(bar,textvariable=self.count,style='Muted.TLabel').pack(side='right',padx=5)
+        controls=ttk.Frame(bar)
+        ttk.Checkbutton(controls,text='Follow',variable=self.follow,command=self.scroll_end).pack(side='left',padx=(2,6))
+        icon(controls,'trash',self.clear,'Clear the local log view; simulation and MEC records are unchanged')
+        ttk.Label(controls,textvariable=self.count,style='Muted.TLabel').pack(side='left',padx=5)
+        self.compact_bar=None
+        def reflow(_=None):
+            narrow=bar.winfo_width()<filter_host.winfo_reqwidth()+search_host.winfo_reqwidth()+controls.winfo_reqwidth()+20
+            if narrow==self.compact_bar:return
+            self.compact_bar=narrow
+            for widget in (filter_host,search_host,controls):widget.grid_forget()
+            for col in range(3):bar.columnconfigure(col,weight=0)
+            filter_host.grid(row=0,column=0,columnspan=1,sticky='w',padx=(0,6))
+            if narrow:
+                bar.columnconfigure(1,weight=1)
+                controls.grid(row=0,column=1,columnspan=1,sticky='e')
+                search_host.grid(row=1,column=0,columnspan=2,sticky='ew',pady=(3,0))
+            else:
+                bar.columnconfigure(1,weight=1)
+                search_host.grid(row=0,column=1,columnspan=1,sticky='ew',padx=(0,6),pady=0)
+                controls.grid(row=0,column=2,columnspan=1,sticky='e')
+        bar.bind('<Configure>',reflow,add='+')
+        self.count.trace_add('write',lambda *_:bar.after_idle(reflow) if bar.winfo_exists() else None)
         area=ttk.Frame(self,style='Editor.TFrame');area.pack(fill='both',expand=True)
         self.text=tk.Text(area,height=5,wrap='none',font=('Consolas',9),background=t.EDITOR,
             foreground=t.FG,insertbackground=t.FG,selectbackground='#264f78',selectforeground='#ffffff',

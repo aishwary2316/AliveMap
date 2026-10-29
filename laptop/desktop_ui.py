@@ -72,7 +72,9 @@ def build_workspace(app):
     header=ttk.Frame(outer,padding=(8,3));header.pack(fill='x')
     ttk.Label(header,text='AliveMap',style='Title.TLabel').pack(side='left',padx=(0,14))
     ttk.Label(header,text='SIMULATION',style='Muted.TLabel').pack(side='left')
-    ttk.Label(header,textvariable=app.region,foreground=t.ACCENT).pack(side='left',padx=10)
+    region=ElidedLabel(header,app.region,foreground=t.ACCENT)
+    region.pack(side='left',padx=10,fill='x',expand=True)
+    Hint(region,lambda:app.region.get())
     app.connection_led=tk.Button(header,text='MEC',foreground=t.MUTED,background=t.PANEL,
         activebackground=t.FIELD,activeforeground=t.FG,relief='flat',borderwidth=0,padx=6,pady=1,
         font=('Segoe UI',9),cursor='hand2',command=lambda:app.send('refresh'))
@@ -120,7 +122,7 @@ def build_workspace(app):
     details=ttk.Frame(bottom);details.pack(fill='both',expand=True)
     config=ttk.Frame(details,width=254,padding=(8,4));config.pack(side='left',fill='y')
     config.pack_propagate(False)
-    app.inspector.bind('<Configure>',lambda e:config.configure(width=e.width),add='+')
+
     ttk.Label(config,text='SCENARIO',style='Muted.TLabel').pack(anchor='w',pady=(0,2))
     app.map_box=app.combo(config,'Map',app.map,list(GROUPS))
     app.region_box=app.combo(config,'Region',app.region,[])
@@ -158,14 +160,10 @@ def build_workspace(app):
     app.footer_label=ElidedLabel(footer,app.tile_status,style='Muted.TLabel');app.footer_label.pack(fill='x')
     Hint(app.footer_label,lambda:app.tile_status.get())
     root.bind('<space>',app.keyboard_play);root.bind('<Right>',app.keyboard_step)
-    app._layout_ready=False
-    def arrange(_=None):
-        if not app._layout_ready and vertical.winfo_height()>350 and upper.winfo_width()>600:
-            app._layout_ready=True
-            upper.sashpos(0,254)
-            vertical.sashpos(0,max(300,vertical.winfo_height()-188))
-    vertical.bind('<Configure>',lambda e:root.after_idle(arrange),add='+')
-    root.after(250,arrange)
+    from .responsive import ResponsiveWorkspace
+    app.layout=ResponsiveWorkspace(app,vertical,upper,bottom,config,transport)
+    app.canvas.bind('<Configure>',app.layout.fit_overview,add='+')
+    app.console.bar.bind('<Configure>',app.layout.schedule,add='+')
     root.after(200,lambda:dark_titlebar(root))
 
 

@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-29",
+  "scope": "Local Windows Tk layout and local SUMO/editor regression",
+  "layout": {
+    "cases": [
+      "test_monitor_layouts_and_resize[1920-1080-1]",
+      "test_monitor_layouts_and_resize[1920-1200-1]",
+      "test_monitor_layouts_and_resize[1280-720-1]",
+      "test_monitor_layouts_and_resize[1280-800-1]",
+      "test_monitor_layouts_and_resize[1536-864-1]",
+      "test_monitor_layouts_and_resize[1440-900-1]",
+      "test_monitor_layouts_and_resize[1024-640-1]",
+      "test_monitor_layouts_and_resize[1280-800-1.25]",
+      "test_monitor_layouts_and_resize[1280-800-1.5]",
+      "test_monitor_layouts_and_resize[1024-640-1.5]",
+      "test_dark_icons_compact_layout_and_semantic_console"
+    ],
+    "tests": 11,
+    "failures": 0
+  },
+  "simulation_regressions": [
+    "test_docked_editor_pins_custom_vehicle_play_pause_and_scene_switch",
+    "test_forms_map_clicks_shapes_save_load_and_epoch_reset"
+  ],
+  "checks": [
+    "Both 16:9 and 16:10 viewports",
+    "Repeated window resize",
+    "Inspector and settings controls fit",
+    "Log toolbar reflow",
+    "Route overview containment",
+    "Inspector splitter retention",
+    "Text scaling up to 150 percent"
+  ],
+  "limitations": [
+    "Physical mixed-DPI monitor handoff not tested",
+    "No MEC deployment or real 5G path verification in this UI change"
+  ]
+}

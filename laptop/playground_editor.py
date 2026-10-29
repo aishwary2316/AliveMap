@@ -34,12 +34,13 @@ class PlaygroundEditor:
         self.window = parent if self.embedded else tk.Toplevel(app.root)
         self.epoch = None
         self.action_buttons=[]
+        self.page_bodies=[]
         self.origin, self.destination, self.geometry, self.tower_point = None, None, None, None
         if not self.embedded:
             self.window.title('AliveMap · Playground tools')
             self.window.geometry('400x760')
             self.window.protocol('WM_DELETE_WINDOW', self.window.withdraw)
-        top = ttk.Frame(self.window, padding=(6,4)); top.pack(fill='x')
+        top = self.top = ttk.Frame(self.window, padding=(6,4)); top.pack(fill='x')
         self.body = top
         self.note = tk.StringVar(value="Load an example or create a scene")
         from .desktop_ui import ElidedLabel, Hint
@@ -140,8 +141,14 @@ class PlaygroundEditor:
         bar.pack(side='right', fill='y'); canvas.pack(fill='both', expand=True)
         canvas.configure(yscrollcommand=bar.set)
         self.body = ttk.Frame(canvas, padding=(7,5))
+        self.page_bodies.append(self.body)
         item = canvas.create_window(0,0,window=self.body,anchor='nw')
-        self.body.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+        def layout(event):
+            canvas.configure(scrollregion=canvas.bbox('all'))
+            for child in event.widget.winfo_children():
+                if child.winfo_class()=='TLabel' and int(child.cget('wraplength') or 0)>0:
+                    child.configure(wraplength=max(120,event.width-14))
+        self.body.bind('<Configure>',layout)
         canvas.bind('<Configure>', lambda e: canvas.itemconfigure(item,width=e.width))
         def wheel(event):
             if event.widget.winfo_class() != 'TCombobox' and str(event.widget).startswith(str(page)):
