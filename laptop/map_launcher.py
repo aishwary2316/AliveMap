@@ -330,6 +330,10 @@ class MapLauncher:
         self.vehicle_detail.set(text)
 
     def draw_profile(self, route):
+        if not self.profile.winfo_ismapped():return
+        key=(id(self.provider),tuple(route),self.profile.winfo_width(),self.profile.winfo_height())
+        if getattr(self,'_profile_key',None)==key:return
+        self._profile_key=key
         self.profile.delete("all")
         samples, distance = [], 0
         for eid in route:
@@ -358,14 +362,11 @@ class MapLauncher:
                     pending.append(self.worker.updates.get_nowait())
                 except queue.Empty:
                     break
-            # Coalesce only adjacent visual snapshots; lifecycle and log events
-            # retain ordering, and the simulation never skips a SUMO step.
-            updates = []
-            for item in pending:
-                if updates and item['kind'] == updates[-1]['kind'] == 'frame':
-                    updates[-1] = item
-                else:
-                    updates.append(item)
+            # Logs can separate frames at high playback speeds. Paint only the
+            # newest snapshot per run; preserve every log and lifecycle event.
+            latest={item.get('run_id'):i for i,item in enumerate(pending) if item['kind']=='frame'}
+            updates=[item for i,item in enumerate(pending)
+                     if item['kind']!='frame' or latest[item.get('run_id')]==i]
             for update in updates:
                 kind = update["kind"]
                 if kind in ("ready", "report", "decision", "snapshot", "error", "finished", "route_review", "radio", "edit_error", "cleanup_error", "busy") and update.get("message"):

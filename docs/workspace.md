@@ -103,7 +103,7 @@ Repeated TraCI state reads are cached within a step and invalidated by movement
 or route changes. Tile items, H3 boundaries/covers and sensor polygons are reused.
 Very broad display grids are omitted rather than allocating thousands of cells;
 zoom in to inspect them. Authoritative affected cells remain visible. Adjacent UI
-frames are coalesced, while all log/lifecycle events retain order. Snapshot files
+frames are coalesced per run, while all log/lifecycle events retain order. Snapshot files
 are written once a second during playback instead of on every tick.
 
 The reproducible physical HTTPS benchmark is:
@@ -121,6 +121,48 @@ Radeon and RTX 3050 6GB. Network waits cannot be solved with extra GPU usage.
 SUMO still runs its native process, UI and simulation use separate threads, and
 map downloads use the existing bounded thread pool. No claim of GPU acceleration
 or saturating all cores is made.
+
+### Map interaction performance
+
+Map paints are now coalesced on a 16 ms timer. Background requests have four
+active download slots and no FIFO backlog of old views; each completion chooses
+tiles from the current viewport, starting near the center. Socket timeouts are
+four seconds. Cache reads and image decoding happen on those workers. An
+interrupted/corrupt cache is refetched. Already downloaded parent imagery can
+serve as a temporary zoom preview until the requested sharp tiles arrive.
+
+Two separate workers rasterize the actual local OSM/SUMO roads and the display
+H3 grid into reusable tiles. This keeps road geometry usable during imagery
+outages, including partially loaded views, and avoids rebuilding thousands of
+native drawing objects on each drag. The red affected H3 cells still come from
+the selected MEC backend. Native image uploads have an 8 ms scheduling budget
+per paint (a single native operation may exceed it); additional uploads are
+spread across paints. Hidden elevation plots are not rebuilt, and unchanged
+route profiles are reused. None of these display changes skip SUMO steps or
+replace per-vehicle routing.
+
+MEC reads/idempotent playground operations have one short retry, with a 3 s
+read/write timeout and a 2 s connect timeout. A failed MEC still pauses physical
+playback and requires reconnecting; local demo is an explicit mode. A Cloudflare
+530 response was independently observed during this performance work. No remote
+service, tunnel or DNS configuration was changed to conceal that outage.
+
+`tests/test_map_responsiveness.py` holds all four imagery requests open while
+exercising input, verifies that obsolete views are not subsequently downloaded,
+and checks UI heartbeat, bounded work and raster H3 output. The existing UI,
+editor, routing and four-map worker regressions were also run. Measured native
+rendering results are in `evidence/deployment/map-ui-benchmark.json`. The test
+uses Delhi at a 1600x900 viewport with network disabled and cached raster data;
+it isolates interaction/painting and does not measure Internet download speed,
+initial map preparation, physical MEC throughput or a real 5G radio path.
+
+To reproduce, first save the baseline module and then use an existing playground
+run snapshot (both baseline source and snapshots stay ignored):
+
+```powershell
+git show 6a3569c:laptop/map_canvas.py | Set-Content -Encoding utf8 .local/map_canvas_before.py
+.\.venv\Scripts\python.exe -m scripts.benchmark_map_ui --baseline-source .local/map_canvas_before.py --snapshot runs/<run>/current.json
+```
 
 `tests/test_desktop_workspace.py` exercises real Tk/SUMO: docked tabs, mapped pane
 sizes, pin hit/drag/drop, tile-item reuse, custom vehicle, role, keyboard focus,

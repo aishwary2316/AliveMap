@@ -334,9 +334,10 @@ class PlaygroundEditor:
         self.scene = frame.get("scene")
         if not self.scene:
             return
-        self.vehicle_box["values"] = list(self.scene["vehicles"])
-        self.incident_box["values"] = [a["id"] for a in self.scene["anomalies"]]
-        self.tower_box["values"] = [t["id"] for t in self.scene["towers"]]
+        for widget,values in ((self.vehicle_box,tuple(self.scene['vehicles'])),
+                              (self.incident_box,tuple(a['id'] for a in self.scene['anomalies'])),
+                              (self.tower_box,tuple(t['id'] for t in self.scene['towers']))):
+            if tuple(widget['values'])!=values:widget['values']=values
         if self.epoch != frame["run_id"]:
             self.epoch = frame["run_id"]
             self.origin, self.destination, self.geometry, self.tower_point = None, None, None, None

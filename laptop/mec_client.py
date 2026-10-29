@@ -44,7 +44,7 @@ class MecClient:
                 self.remote_https = True
                 selected += '/legacy'
                 semantics_url = None
-            self.http = httpx.Client(base_url=selected, headers=headers, timeout=10, trust_env=False,
+            self.http = httpx.Client(base_url=selected, headers=headers, timeout=httpx.Timeout(3,connect=2), trust_env=False,
                                      verify=True, follow_redirects=False,
                                      limits=httpx.Limits(max_keepalive_connections=10 if self.remote_https else 0))
         else:
@@ -69,7 +69,7 @@ class MecClient:
 
     def get(self, path, **kwargs):
         """Bounded read retries; never manufacture an empty state."""
-        attempts = 5 if self.remote_https else 2
+        attempts = 2
         for attempt in range(attempts):
             try:
                 response = self.http.get(path, **kwargs)

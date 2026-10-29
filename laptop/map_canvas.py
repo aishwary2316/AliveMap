@@ -78,11 +78,15 @@ class TileStore:
         key = hashlib.sha256(url.encode()).hexdigest()
         file, meta = self.cache/(key+".tile"), self.cache/(key+".json")
         if source.cache and file.exists() and meta.exists():
-            if json.loads(meta.read_text())["expires"] > time.time():
-                cached = Image.open(file).convert("RGB")
-                return cached.resize((256, 256), Image.Resampling.LANCZOS) if cached.size == (512, 512) else cached
+            try:
+                if json.loads(meta.read_text())["expires"] > time.time():
+                    with Image.open(file) as raw:cached=raw.convert('RGB')
+                    if cached.size not in ((256,256),(512,512)):raise ValueError('Invalid cached tile size')
+                    return cached.resize((256, 256), Image.Resampling.LANCZOS) if cached.size == (512, 512) else cached
+            except (OSError,ValueError,KeyError):
+                pass  # A partial cache from an interrupted run is refetched.
         request = urllib.request.Request(url, headers={"User-Agent": "AliveMap/0.4 (interactive research map; github.com/aishwary2316/AliveMap)"})
-        with self.fetch(request, timeout=12) as response:
+        with self.fetch(request, timeout=4) as response:
             data = response.read(4_000_001)
             control = response.headers.get("Cache-Control", "")
         if len(data) > 4_000_000:
@@ -112,15 +116,20 @@ class MapCanvas(tk.Canvas):
         self.zoom, self.center = 16, (77.25, 28.63)
         self.provider, self.scenario, self.frame = None, None, None
         self.selected, self.follow, self.all_routes = "cautious", True, False
-        self.pool, self.results = ThreadPoolExecutor(max_workers=3), queue.Queue()
+        self.pool, self.results = ThreadPoolExecutor(max_workers=4), queue.Queue()
+        self.local_pool = ThreadPoolExecutor(max_workers=2,thread_name_prefix='AliveMap-roads')
         self.store, self.tiles, self.pending, self.failed = TileStore(), {}, set(), {}
         self.photos, self.drag_origin, self.closed = {}, None, False
+        self._previews = {}
         self.wanted = set()
         self.edit_callback, self.edit_points, self.edit_tool = None, [], None
         self.pins, self.pin_callback, self.pin_start, self.drag_pin = {}, None, None, None
         self.on_vehicle_select = None
         self._overlay_mode = True
         self._tile_items = {}
+        self._grid_items = {}
+        self._redraw_timer = None
+        self._drawing = False
         self._grid_cache, self._boundary_cache = {}, {}
         self.show_cells, self.show_towers = True, True
         self.bind("<Configure>", lambda event: self.redraw())
@@ -128,7 +137,7 @@ class MapCanvas(tk.Canvas):
         self.bind("<ButtonPress-1>", self.begin_drag)
         self.bind("<B1-Motion>", self.drag)
         self.bind("<ButtonRelease-1>", self.end_drag)
-        self.after(120, self.drain)
+        self._drain_timer=self.after(40, self.drain)
 
     def set_map(self, provider, scenario):
         self.provider, self.scenario, self.frame = provider, scenario, None
@@ -190,6 +199,8 @@ class MapCanvas(tk.Canvas):
 
     def screen(self, lon, lat):
         x, y = world_pixel(lon, lat, self.zoom)
+        if self._drawing:
+            return x-self._left, y-self._top
         cx, cy = world_pixel(*self.center, self.zoom)
         return x-cx+self.winfo_width()/2, y-cy+self.winfo_height()/2
 
@@ -261,18 +272,27 @@ class MapCanvas(tk.Canvas):
     def request_tile(self, key):
         if key in self.pending or time.monotonic()-self.failed.get(key, -100) < 30:
             return
+        local=key[0].startswith(('offline:','grid:'))
+        # Never queue an entire old viewport behind slow sockets. The next
+        # completion picks from the latest view, not an obsolete FIFO backlog.
+        if sum(k[0].startswith(('offline:','grid:'))==local for k in self.pending)>=(2 if local else 4):
+            return
         self.pending.add(key)
-        source = self.source
+        source,provider = self.source,self.provider
         def work():
-            if key not in self.wanted or self.closed:
+            if self.closed:
                 self.results.put((key, None, None))
                 return
             try:
-                image = self.store.load(source, *key[1:])
+                if local:
+                    from .offline_tiles import road_tile,grid_tile
+                    image=grid_tile(*key[1:]) if key[0].startswith('grid:') else road_tile(provider,*key[1:])
+                else:
+                    image = self.store.load(source, *key[1:])
                 self.results.put((key, image, None))
             except Exception:
                 self.results.put((key, None, "Map tiles unavailable; live vehicle/route overlays remain active."))
-        self.pool.submit(work)
+        (self.local_pool if local else self.pool).submit(work)
 
     def drain(self):
         if self.closed:
@@ -284,7 +304,7 @@ class MapCanvas(tk.Canvas):
                 self.pending.discard(key)
                 if image:
                     self.tiles[key] = image
-                    if len(self.tiles) > 180:
+                    if len(self.tiles) > 300:
                         del self.tiles[next(iter(self.tiles))]
                 elif error:
                     self.failed[key] = time.monotonic()
@@ -294,7 +314,7 @@ class MapCanvas(tk.Canvas):
             pass
         if dirty:
             self.redraw()
-        self.after(120, self.drain)
+        self._drain_timer=self.after(40, self.drain)
 
     def _create(self, itemType, args, kw):
         # Keep downloaded tile items alive; only transient overlays are rebuilt.
@@ -307,13 +327,24 @@ class MapCanvas(tk.Canvas):
         return super()._create(itemType,args,kw)
 
     def redraw(self):
+        # Coalesce mouse, timer, tile and simulation events into one paint.
+        if not self.closed and self._redraw_timer is None:
+            self._redraw_timer=self.after(16,self._redraw_now)
+
+    def _redraw_now(self):
+        self._redraw_timer=None
         if self.closed or self.winfo_width() < 10:
             return
         self.delete('overlay')
+        # Native image uploads must also be budgeted: a cached viewport can
+        # otherwise allocate dozens of Tk images in one blocking callback.
+        self._upload_deadline=time.perf_counter()+.008
+        self._needs_upload=False
         self._overlay_mode = False
         width, height = self.winfo_width(), self.winfo_height()
         cx, cy = world_pixel(*self.center, self.zoom)
         left, top = cx-width/2, cy-height/2
+        self._left,self._top,self._drawing=left,top,True
         available = 0
         self.wanted = {(self.source.name, self.zoom, tx % 2**self.zoom, ty)
                        for tx in range(math.floor(left/256), math.floor((left+width)/256)+1)
@@ -327,27 +358,44 @@ class MapCanvas(tk.Canvas):
                 key = (self.source.name, self.zoom, tx % 2**self.zoom, ty)
                 x, y = tx*256-left, ty*256-top
                 if key in self.tiles:
+                    photo=self.photo(key)
+                    if photo is None:continue
                     available += 1
-                    if key not in self.photos:
-                        self.photos[key] = ImageTk.PhotoImage(self.tiles[key])
                     existing = self._tile_items.get(key)
                     if existing and existing[1] == 'image':
                         self.coords(existing[0],x,y)
+                        self.itemconfigure(existing[0],image=self.photos[key])
                     else:
                         if existing:
                             self.delete(existing[0])
                         self._tile_items[key] = (self.create_image(x,y,image=self.photos[key],anchor='nw'),'image')
                 else:
+                    fallback=('offline:'+str(id(self.provider)),self.zoom,key[2],ty)
+                    if self.provider and fallback not in self.tiles:self.request_tile(fallback)
+                    photo_key=fallback if fallback in self.tiles else None
+                    preview=self.parent_preview(key)
+                    if photo_key or preview is not None:
+                        photo=preview if preview is not None else self.photo(photo_key)
+                        if photo is None:continue
+                        existing=self._tile_items.get(key)
+                        if existing and existing[1]=='image':
+                            self.coords(existing[0],x,y)
+                            self.itemconfigure(existing[0],image=photo)
+                        else:
+                            if existing:self.delete(existing[0])
+                            self._tile_items[key]=(self.create_image(x,y,image=photo,anchor='nw'),'image')
+                        continue
                     existing = self._tile_items.get(key)
-                    if existing:
+                    if existing and existing[1]=='placeholder':
                         self.coords(existing[0],x,y,x+256,y+256)
                     else:
+                        if existing:self.delete(existing[0])
                         self._tile_items[key] = (self.create_rectangle(x,y,x+256,y+256,outline='#d7dfe5'),'placeholder')
-                    self.request_tile(key)
+        for key in sorted(self.wanted,key=lambda k:(k[2]*256+128-cx)**2+(k[3]*256+128-cy)**2):
+            if key not in self.tiles:self.request_tile(key)
         self._overlay_mode = True
+        self.draw_grid_tiles()
         if self.provider and self.frame:
-            if not available:
-                self.draw_offline_roads()
             self.draw_network()
             self.draw_live()
         for name, ll in self.pins.items():
@@ -379,6 +427,58 @@ class MapCanvas(tk.Canvas):
         self.create_text(16,19,anchor='w',text=text,font=('Segoe UI',8),fill='#cccccc',width=max(1,extent-12))
         if len(self.photos) > 220:
             self.photos = {key: photo for key, photo in self.photos.items() if key in self.tiles}
+        tile_status=(self.source.name,available,len(self.wanted),sum(k in self.failed for k in self.wanted))
+        if not self.edit_tool and tile_status!=getattr(self,'_last_tile_status',None):
+            self._last_tile_status=tile_status
+            self.status(f'{self.source.name} · {available}/{len(self.wanted)} background tiles · '+
+                ('ready' if available==len(self.wanted) else 'background unavailable; local OSM roads remain usable' if tile_status[3] else 'loading in background; local OSM roads remain usable'))
+        self._drawing=False
+        if self._needs_upload:self.redraw()
+
+    def photo(self,key):
+        if key not in self.photos:
+            if time.perf_counter()>self._upload_deadline:
+                self._needs_upload=True
+                return None
+            self.photos[key]=ImageTk.PhotoImage(self.tiles[key])
+        return self.photos[key]
+
+    def draw_grid_tiles(self):
+        keys={('grid:',*key[1:]) for key in self.wanted} if self.show_cells and self.frame and self.frame.get('playground') else set()
+        for key in set(self._grid_items)-keys:self.delete(self._grid_items.pop(key))
+        for key in keys:
+            if key not in self.tiles:
+                self.request_tile(key)
+                continue
+            photo=self.photo(key)
+            if photo is None:continue
+            x,y=key[2]*256-self._left,key[3]*256-self._top
+            if key in self._grid_items:self.coords(self._grid_items[key],x,y)
+            else:
+                self._overlay_mode=False
+                self._grid_items[key]=self.create_image(x,y,image=self.photos[key],anchor='nw')
+                self._overlay_mode=True
+            self.tag_raise(self._grid_items[key])
+
+    def parent_preview(self,key):
+        """Reuse an already fetched parent while sharper visible tiles arrive."""
+        if key in self._previews:return self._previews[key]
+        name,z,x,y=key
+        for depth in range(1,min(4,z)+1):
+            factor=2**depth
+            parent=(name,z-depth,x//factor,y//factor)
+            if parent not in self.tiles:continue
+            if time.perf_counter()>self._upload_deadline:
+                self._needs_upload=True
+                return None
+            size=256/factor;left=(x%factor)*size;top=(y%factor)*size
+            image=self.tiles[parent].crop((left,top,left+size,top+size)).resize((256,256),Image.Resampling.BILINEAR)
+            photo=ImageTk.PhotoImage(image)
+            self._previews[key]=photo
+            if len(self._previews)>100:
+                self._previews={k:v for k,v in self._previews.items() if k in self.wanted}
+            return photo
+        return None
 
     def draw_offline_roads(self):
         from shapely.geometry import box
@@ -454,7 +554,6 @@ class MapCanvas(tk.Canvas):
     def draw_network(self):
         if not self.frame.get("playground"):
             return
-        import h3
         from shapely.geometry import Point
         scene, network = self.frame["scene"], self.frame["network"]
         if self.show_towers:
@@ -475,29 +574,6 @@ class MapCanvas(tk.Canvas):
             # Display grid is computed locally; affected red cells are authoritative
             # values returned by MEC. At broad zoom use the macro r8 grid.
             res = 10 if self.zoom >= 15 else 8
-            cx, cy = world_pixel(*self.center, self.zoom)
-            corners = [pixel_lonlat(cx+dx, cy+dy, self.zoom) for dx, dy in
-                       [(-self.winfo_width()/2, -self.winfo_height()/2), (self.winfo_width()/2, -self.winfo_height()/2),
-                        (self.winfo_width()/2, self.winfo_height()/2), (-self.winfo_width()/2, self.winfo_height()/2)]]
-            polygon = {"type": "Polygon", "coordinates": [[*corners, corners[0]]]}
-            if self.zoom >= 11:
-                # Cache at tile boundaries rather than recomputing an H3 cover
-                # on every moving-vehicle frame. Limit output before drawing.
-                grid_key = (self.zoom, int(cx//256), int(cy//256), self.winfo_width(), self.winfo_height())
-                if grid_key not in self._grid_cache:
-                    west,north = pixel_lonlat((int(cx//256)-1)*256-self.winfo_width()/2,
-                        (int(cy//256)-1)*256-self.winfo_height()/2,self.zoom)
-                    east,south = pixel_lonlat((int(cx//256)+2)*256+self.winfo_width()/2,
-                        (int(cy//256)+2)*256+self.winfo_height()/2,self.zoom)
-                    cover = {'type':'Polygon','coordinates':[[[west,south],[east,south],[east,north],[west,north],[west,south]]]}
-                    area_km2 = abs((east-west)*(north-south))*111.32**2*math.cos(math.radians(self.center[1]))
-                    estimate = area_km2/h3.average_hexagon_area(res,unit='km^2')
-                    self._grid_cache[grid_key] = tuple(sorted(h3.geo_to_cells(cover,res))) if estimate < 2200 else ()
-                    if len(self._grid_cache)>12:
-                        self._grid_cache.pop(next(iter(self._grid_cache)))
-                for cell in self._grid_cache[grid_key][:1800]:
-                    flat = [v for lon, lat in self.cell_boundary(cell) for v in self.screen(lon, lat)]
-                    self.create_polygon(*flat, fill="", outline="#94a3b8", width=1)
             for record in network.get("incidents", []):
                 if record["status"] != "active":
                     continue
@@ -515,4 +591,7 @@ class MapCanvas(tk.Canvas):
 
     def close(self):
         self.closed = True
+        if self._redraw_timer is not None:self.after_cancel(self._redraw_timer)
+        self.after_cancel(self._drain_timer)
         self.pool.shutdown(wait=False, cancel_futures=True)
+        self.local_pool.shutdown(wait=False, cancel_futures=True)

@@ -151,6 +151,7 @@ def build_workspace(app):
     label.pack(anchor='w',fill='x')
     label.bind('<Configure>',lambda e:label.configure(wraplength=max(150,e.width-4)))
     app.profile=tk.Canvas(state,height=88,background=t.EDITOR,highlightthickness=0);app.profile.pack(fill='both',expand=True)
+    app.profile.bind('<Configure>',lambda e:app.show_vehicle())
     app.combo(settings,'MEC',app.mode,['Local demo (no SSH)','Physical MEC (HTTPS / SSH)'])
     app.combo(settings,'Layer',app.layer,list(app.canvas.sources)).bind('<<ComboboxSelected>>',lambda e:app.canvas.set_source(app.layer.get()))
     ttk.Checkbutton(settings,text='Open native SUMO on next load',variable=app.sumo_gui).pack(anchor='w',pady=3)

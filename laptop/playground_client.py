@@ -11,7 +11,7 @@ class PlaygroundClient:
         if http is None:
             url, headers = endpoint(url)
             self.endpoint_url = url
-            self.http = httpx.Client(base_url=url, headers=headers, timeout=10, trust_env=False,
+            self.http = httpx.Client(base_url=url, headers=headers, timeout=httpx.Timeout(3,connect=2), trust_env=False,
                                      verify=True, follow_redirects=False)
         else:
             self.http = http
@@ -27,16 +27,16 @@ class PlaygroundClient:
         Incident versions, full tower replacement and equal-time telemetry are
         idempotent on MEC. Authentication/validation/coverage failures are final.
         """
-        for attempt in range(5):
+        for attempt in range(2):
             try:
                 response = self.http.request(method, path, **kwargs)
                 if response.status_code >= 500:
                     response.raise_for_status()
                 return response
             except (httpx.TransportError, httpx.HTTPStatusError):
-                if attempt == 4:
+                if attempt == 1:
                     raise
-                time.sleep(min(.5*2**attempt, 2))
+                time.sleep(.15)
 
     def preflight(self, _schema=None):
         health = self.request('GET', "/health"); health.raise_for_status()

@@ -44,7 +44,7 @@ def test_https_client_verifies_certificates_and_does_not_follow_redirects(tmp_pa
 
 
 def test_transient_transport_and_5xx_retry_without_repeating_auth_errors(monkeypatch):
-    responses=iter([503,503,200,401])
+    responses=iter([503,200,401])
     calls=[]
     def respond(request):
         calls.append(request)
@@ -52,6 +52,19 @@ def test_transient_transport_and_5xx_retry_without_repeating_auth_errors(monkeyp
     http=httpx.Client(base_url='https://example.test',transport=httpx.MockTransport(respond))
     client=PlaygroundClient(None,'epoch','map',[0,0,1,1],[],http=http)
     monkeypatch.setattr('laptop.playground_client.time.sleep',lambda _:None)
-    assert client.request('GET','/health').status_code==200 and len(calls)==3
-    assert client.request('GET','/health').status_code==401 and len(calls)==4
+    assert client.request('GET','/health').status_code==200 and len(calls)==2
+    assert client.request('GET','/health').status_code==401 and len(calls)==3
+    client.close()
+
+
+def test_persistent_outage_has_only_one_short_retry(monkeypatch):
+    calls=[];sleeps=[]
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(530)
+    http=httpx.Client(base_url='https://example.test',transport=httpx.MockTransport(respond))
+    client=PlaygroundClient(None,'epoch','map',[0,0,1,1],[],http=http)
+    monkeypatch.setattr('laptop.playground_client.time.sleep',sleeps.append)
+    with pytest.raises(httpx.HTTPStatusError):client.request('POST','/tick',json={})
+    assert len(calls)==2 and sleeps==[.15]
     client.close()

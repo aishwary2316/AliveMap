@@ -24,6 +24,7 @@ def test_visible_tile_cache_reuses_response_and_does_not_request_higher_zoom(tmp
     class Response(io.BytesIO):
         headers = {"Cache-Control": "max-age=604800"}
     def fetch(request, timeout):
+        assert timeout<=4
         calls.append(request)
         return Response(data.getvalue())
     store = TileStore(tmp_path, fetch=fetch)
@@ -32,6 +33,10 @@ def test_visible_tile_cache_reuses_response_and_does_not_request_higher_zoom(tmp
     store.load(source, 17, 10, 20)
     assert len(calls) == 1 and "17/10/20" in calls[0].full_url
     assert calls[0].get_header("User-agent").startswith("AliveMap/")
+    # Interrupted writes from an earlier run must not poison this tile forever.
+    next(tmp_path.glob('*.json')).write_text('{incomplete',encoding='utf-8')
+    assert store.load(source,17,10,20).size==(256,256)
+    assert len(calls)==2
 
 
 def test_guided_worker_runs_every_map_at_fast_speed_without_ssh_and_keeps_epochs_separate(tmp_path):
