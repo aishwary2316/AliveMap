@@ -38,12 +38,14 @@ is created. Existing map packages, scene files, SUMO and the MEC API are reused.
   selector. Space toggles playback; Right advances one step. Shortcuts do not
   intercept typing in forms or the log. The timeline shows elapsed simulation
   time and route-change markers; it does not claim reversible time travel.
-- **Bottom left:** map, subregion and guided-comparison incident. Hover the
-  four action icons for baseline, incident run, empty playground and example.
+- **Bottom left:** visible Backend selector, map, region, With/Without incident
+  selector and incident type. **Run** loads and plays the selected story;
+  **Baseline** runs identical trips without the anomaly. The other two icons
+  open an empty playground or a paused example. All use the same editable engine.
 - **Bottom console:** Logs, Status, Current state and Settings. Logs are bounded
   and scrollable. Status contains actual/target speed and comparison results.
   Current state contains the followed vehicle's road, OSM IDs, decision and
-  remaining elevation profile. Settings selects the backend and background layer.
+  remaining elevation profile. Settings also selects the backend and background layer.
   Backend changes apply on the next load.
 - **Header:** simulation/wall clocks and a small connection light. Green is a
   successful backend response; red is a failed connection; amber is loading.
@@ -77,8 +79,10 @@ settings still needs a manual check on that monitor pair.
    afterwards; dropping them snaps to real roads. Use the direction selectors
    to choose among nearby directed edges. Save the vehicle to apply the form.
 3. Changing an existing vehicle's destination, role or profile keeps its real
-   position. Relocation still requires removing it and creating a new ID; an
-   invalid origin change produces a visible error instead of moving it secretly.
+   position. Saving a new origin/position explicitly relocates it: the old
+   driving segment ends, a manual-placement event is logged, and SUMO queues
+   safe reinsertion at the chosen road on the next step. A placement within
+   10 m of another active vehicle is rejected visibly.
 4. In Incidents, draw a circle, rectangle or polygon, set type/parameters and
    Save area. **Publish** is explicit operator injection; otherwise a reporter
    must encounter it. Clear affects the selected incident only.
@@ -88,6 +92,52 @@ settings still needs a manual check on that monitor pair.
 Edits pause playback. Scene files retain initial placements, not a running
 checkpoint. Restart resets this run and its scoped MEC experiment; it is not
 backward playback. A maintained baseline and a new active experiment are distinct.
+
+## Stories and incidents
+
+Run with an incident creates two sensor-only scouts and independently routing
+receivers. Each scout physically approaches the anomaly and uploads its own
+observation. The selected MEC backend computes overlapping H3 cells and a
+transparent risk assessment: closure severity 1, flood depth/0.5 m capped at 1,
+congestion 1-speed ratio. It reports priority and marks two distinct sensor
+reporters as corroborated. Operator publication is explicitly labelled injection
+and does not count as an independent sensor reporter. This is a deterministic
+POC policy, not a calibrated safety assessment.
+
+Tower-scoped delivery informs receivers, which compute their own routes on the
+real directed graph. Both the main map and the route overview show withdrawn
+route segments dashed and current paths solid. When a closure leaves no route,
+the vehicle stops and the story says so; Mayangkhang's closure can legitimately
+produce a safe stop instead of a detour. No alternative road is invented.
+
+The same trips without incidents form the baseline. Completed run arrival times
+remain available in Status. **Run** disables inspection pauses so the story can
+continue to the second scout; you can enable Pause on reroute for step-by-step
+inspection. A paused Example respects that checkbox. The on-map notice explains
+drawing, load errors and story progress. Editing a story turns it into a custom
+playground instead of continuing a scripted narration about manually changed data.
+
+For a custom incident, enter a new ID, select Circle/Rect/Polygon, and click the
+map (one centre/two corners/three or more polygon vertices). Finish closes a
+polygon. The orange dashed preview is **unsaved**. Save area creates ground
+truth; a reporting vehicle must discover it. Publish injects that saved incident
+immediately, with a MEC acknowledgement. Clear sends a versioned clearance and
+disables detection; the trash removes the saved object. Cancel discards the
+draft without removing an existing incident. Edit successes and errors are logged.
+
+A physical connection failure cannot prevent starting a new Local run, even if
+cleanup of the previous physical experiment fails. The retained remote experiment
+is reported for later cleanup; it is never silently erased. Local mode executes
+the same H3/assessment/delivery API inside the laptop, with no SSH or Internet
+requirement for SUMO or the packaged road network. Internet is only needed for
+uncached decorative background tiles in that mode.
+
+The physical API must advertise `story_revision: 1`. A guarded API-only update is
+available through `scripts/Update-PlaygroundMec.ps1`, using the ignored SSH
+configuration and original private deployment record. It verifies source hashes,
+preserves SQLite experiments, updates only the managed API, checks readiness,
+and rolls back on failure. It does not edit the original API, tunnels, DNS,
+firewall, Open5GS, MicroK8s or radio configuration.
 
 ## Performance and verification
 

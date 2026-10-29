@@ -27,6 +27,38 @@ def drawn_geometry(provider, tool, points, radius=50):
     return provider.geometry_to_wgs84(area)
 
 
+class FormScroll(ttk.Frame):
+    """Clipped native form with no embedded canvas windows to lose on tab switches."""
+    def __init__(self,parent):
+        super().__init__(parent)
+        self.offset=0
+        self.bar=ttk.Scrollbar(self,orient='vertical',command=self.scroll)
+        self.bar.pack(side='right',fill='y')
+        self.viewport=ttk.Frame(self,width=250,height=200)
+        self.viewport.pack(side='left',fill='both',expand=True)
+        self.content=ttk.Frame(self.viewport,padding=(7,5))
+        self.content.place(x=0,y=0,relwidth=1)
+        self.viewport.bind('<Configure>',self.layout)
+        self.content.bind('<Configure>',self.layout)
+
+    def layout(self,_=None):
+        width=max(1,self.viewport.winfo_width())
+        for child in self.content.winfo_children():
+            if child.winfo_class()=='TLabel' and int(child.cget('wraplength') or 0)>0:
+                wrap=max(120,width-14)
+                if int(child.cget('wraplength'))!=wrap:child.configure(wraplength=wrap)
+        full=max(1,self.content.winfo_reqheight());visible=max(1,self.viewport.winfo_height())
+        self.offset=max(0,min(self.offset,max(0,full-visible)))
+        self.content.place_configure(y=-self.offset)
+        self.bar.set(self.offset/full,min(1,(self.offset+visible)/full))
+
+    def scroll(self,action,value,units=None):
+        full=max(1,self.content.winfo_reqheight())
+        if action=='moveto':self.offset=float(value)*full
+        else:self.offset+=int(value)*(self.viewport.winfo_height()*.85 if units=='pages' else 22)
+        self.layout()
+
+
 class PlaygroundEditor:
     def __init__(self, app, parent=None):
         self.app, self.scene = app, None
@@ -43,6 +75,7 @@ class PlaygroundEditor:
         top = self.top = ttk.Frame(self.window, padding=(6,4)); top.pack(fill='x')
         self.body = top
         self.note = tk.StringVar(value="Load an example or create a scene")
+        if hasattr(app,'notice'):self.note.trace_add('write',lambda *_:app.notice.set(self.note.get()))
         from .desktop_ui import ElidedLabel, Hint
         note=ElidedLabel(self.body,self.note,style='Muted.TLabel')
         note.pack(fill='x',pady=(0,3));Hint(note,lambda:self.note.get())
@@ -50,6 +83,7 @@ class PlaygroundEditor:
             ('Load scene…',self.load),('Save scene…',self.save)])
         self.tabs = ttk.Notebook(self.window)
         self.tabs.pack(fill='both', expand=True)
+        self.tabs.bind('<<NotebookTabChanged>>',lambda _:self.tabs.update_idletasks(),add='+')
         self.vehicle_page = self.page('Vehicles')
         self.heading('VEHICLE')
         self.vehicle = self.field("Vehicle ID", "vehicle-1")
@@ -80,7 +114,7 @@ class PlaygroundEditor:
         self.ttl = self.field("TTL (real s)", "1800")
         self.sensor = self.field("Sensor (m)", "20")
         self.buttons([(tool.title(), lambda t=tool: self.draw(t)) for tool in ("circle", "rectangle", "polygon")])
-        self.buttons([("Finish shape", app.canvas.finish_edit), ("Cancel drawing", app.canvas.cancel_edit)])
+        self.buttons([("Finish shape", app.canvas.finish_edit), ("Cancel drawing", self.cancel_drawing)])
         self.buttons([("Add / update anomaly", self.put_anomaly), ("Remove", lambda: self.edit("remove_anomaly", {"id": self.incident.get()}))])
         self.buttons([("Publish operator incident", lambda: self.edit("publish", {"id": self.incident.get()})), ("Clear selected", lambda: self.edit("clear", {"id": self.incident.get()}))])
         note=ttk.Label(self.body,text='Discover via vehicle, or publish manually.',style='Muted.TLabel',wraplength=245)
@@ -136,24 +170,14 @@ class PlaygroundEditor:
     def page(self, title):
         page = ttk.Frame(self.tabs)
         self.tabs.add(page, text=title)
-        canvas = tk.Canvas(page, highlightthickness=0, background=theme.PANEL, width=250)
-        bar = ttk.Scrollbar(page, orient='vertical', command=canvas.yview)
-        bar.pack(side='right', fill='y'); canvas.pack(fill='both', expand=True)
-        canvas.configure(yscrollcommand=bar.set)
-        self.body = ttk.Frame(canvas, padding=(7,5))
+        scroll=FormScroll(page)
+        scroll.pack(fill='both',expand=True)
+        self.body=scroll.content
         self.page_bodies.append(self.body)
-        item = canvas.create_window(0,0,window=self.body,anchor='nw')
-        def layout(event):
-            canvas.configure(scrollregion=canvas.bbox('all'))
-            for child in event.widget.winfo_children():
-                if child.winfo_class()=='TLabel' and int(child.cget('wraplength') or 0)>0:
-                    child.configure(wraplength=max(120,event.width-14))
-        self.body.bind('<Configure>',layout)
-        canvas.bind('<Configure>', lambda e: canvas.itemconfigure(item,width=e.width))
         def wheel(event):
             if event.widget.winfo_class() != 'TCombobox' and str(event.widget).startswith(str(page)):
-                canvas.yview_scroll(-int(event.delta/120)*3, 'units')
-        self.window.bind('<MouseWheel>', wheel, add='+')
+                scroll.scroll('scroll',-int(event.delta/120)*3,'units')
+        self.window.winfo_toplevel().bind('<MouseWheel>', wheel, add='+')
         return page
 
     def buttons(self, pairs):
@@ -177,7 +201,17 @@ class PlaygroundEditor:
             button._icon_ref=image
             self.action_buttons.append(button)
             button.pack(side='left',padx=(0,3))
-            Hint(button,label)
+            Hint(button,{
+                'Circle':'Click the map centre; radius comes from Radius (m). Then Save area.',
+                'Rectangle':'Click two opposite map corners. Then Save area.',
+                'Polygon':'Click at least three map vertices, then Finish and Save area.',
+                'Finish shape':'Close a polygon after at least three vertices. Circle and rectangle finish automatically.',
+                'Cancel drawing':'Discard the unsaved drawing; saved incidents are kept.',
+                'Add / update anomaly':'Save ground truth. A reporter must encounter it before MEC knows about it.',
+                'Publish operator incident':'Inject the selected saved incident directly into MEC; bypasses vehicle discovery.',
+                'Clear selected':'Send a versioned clearance and disable discovery of this incident.',
+                'Add / update':'Apply this form to the paused simulation. A changed origin starts a new manual placement.'
+            }.get(label,label))
 
     def guard(self, action):
         try:
@@ -185,6 +219,7 @@ class PlaygroundEditor:
         except Exception as exc:
             self.note.set(str(exc))
             self.app.story.set(str(exc)) if hasattr(self.app, "story") else None
+            if hasattr(self.app,'console'):self.app.console.append('edit_error',str(exc),self.app.frame.get('time',0) if self.app.frame else 0)
 
     def require(self):
         if getattr(self.app,'loading',False):
@@ -206,13 +241,19 @@ class PlaygroundEditor:
         self.note.set("Loading editable world; starts paused. Add anomalies, vehicles and towers, then Resume.")
         self.app.canvas.cancel_edit()
 
-    def open_scene(self, example):
+    def open_scene(self, example, story_kind=None, autoplay=False):
         def action():
             path = self.app.packages.get(self.app.region.get())
             if not path:
                 raise ValueError('Build the selected map first')
             options = {'incident_kind':'none', 'mec_mode':'local' if self.app.mode.get().startswith('Local') else 'physical',
                 'gui':self.app.sumo_gui.get(), 'pause_on_change':self.app.pause_on_change.get()}
+            from .map_launcher import INCIDENTS
+            if example:options.update(story_kind=story_kind or INCIDENTS[self.app.incident.get()],autoplay=autoplay)
+            if hasattr(self.app,'last_load'):self.app.last_load=(example,story_kind)
+            self.app.loading=True
+            self.app.frame=None
+            self.scene=None
             self.app.worker.commands.put(('prepare_scene',(str(path),bool(example),options)))
             self.note.set('Preparing map in background…')
             self.app.canvas.cancel_edit()
@@ -221,6 +262,10 @@ class PlaygroundEditor:
     def edit(self, operation, payload):
         def action():
             self.require()
+            if operation in ('publish','clear','remove_anomaly') and not any(a['id']==payload.get('id') for a in self.scene['anomalies']):
+                raise ValueError('Select a saved incident first, or draw an area and Save area.')
+            if operation=='publish' and self.app.canvas.draft_geometry:
+                raise ValueError('This area is still a draft. Click Save area before Publish.')
             self.app.send("edit", (operation, payload))
             self.note.set("Edit queued; simulation paused. Resume when ready.")
         self.guard(action)
@@ -285,9 +330,19 @@ class PlaygroundEditor:
         def picked(points):
             self.guard(lambda: self.set_geometry(drawn_geometry(self.app.provider, tool, points, float(self.radius.get()))))
         self.guard(lambda: (self.require(), self.app.send("pause"), self.app.canvas.start_edit(tool, picked)))
+        if self.app.canvas.edit_tool:self.note.set('Draw '+tool+': '+('click its centre on the map' if tool=='circle' else 'click two opposite corners' if tool=='rectangle' else 'click at least three vertices, then Finish'))
+
+    def cancel_drawing(self):
+        self.app.canvas.cancel_edit()
+        self.app.canvas.draft_geometry=None
+        self.geometry=None
+        self.app.canvas.redraw()
+        self.note.set('Drawing cancelled; saved incidents were not changed.')
 
     def set_geometry(self, geometry):
         self.geometry = geometry
+        self.app.canvas.draft_geometry=geometry
+        self.app.canvas.redraw()
         self.note.set("Area drawn. Choose type and values, then Add / update anomaly.")
 
     def put_anomaly(self):
@@ -350,7 +405,7 @@ class PlaygroundEditor:
                 widget.set(records[0]["id"] if records else "")
                 if records:
                     select()
-            self.note.set("Ready · edits pause playback")
+            self.note.set("Ready · edits pause playback" if self.scene['vehicles'] else 'Empty world: add a vehicle, a tower for coverage, then draw an incident.')
         associations = frame["network"].get("associations", {})
         lines = [f"{n}: {self.scene['vehicles'][n].get('role', 'both')} · {a['tower_id'] or 'NO COVERAGE'} · knows {', '.join(frame['knowledge'].get(n, [])) or 'none'}" for n, a in associations.items()]
         lines += [f"{e['sim_time']:.1f}s {e['message']}" for e in frame.get("radio_events", [])[-10:]]

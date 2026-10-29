@@ -42,6 +42,8 @@ class PlaygroundClient:
         health = self.request('GET', "/health"); health.raise_for_status()
         if health.json().get("service") != SERVICE or health.json().get("schema_version") != 1 or health.json().get("delivery_revision") != 2:
             raise ValueError("Endpoint is not the reviewed MEC playground API")
+        if health.json().get('story_revision')!=1:
+            raise ValueError('MEC is reachable but needs the AliveMap story API update. Use Local while the managed API is updated.')
         result = self.http.post("/v1/experiments", json={"experiment_id": self.id, "map_id": self.map_id, "bounds": self.bounds, "towers": self.towers})
         result.raise_for_status()
         self.registered = True

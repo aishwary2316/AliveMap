@@ -77,6 +77,10 @@ def verify(output):
         assert len(calls)==4
         release.set();pump(.7)
         assert set(calls[4:]).issubset(current),'obsolete views were downloaded after a pan'
+        deadline=time.monotonic()+4
+        while time.monotonic()<deadline and (not current.issubset(canvas.photos) or canvas._needs_upload):pump(.1)
+        assert current.issubset(canvas.photos),'native image uploads never converged'
+        assert not canvas._needs_upload,'a repaint loop is starving form geometry'
         gaps=[b-a for a,b in zip(heartbeat,heartbeat[1:])]
         assert max(gaps,default=0)<.8,('UI heartbeat stalled',max(gaps))
         print('MAP_RESPONSIVE',{'max_heartbeat_gap_ms':round(max(gaps)*1000,2),

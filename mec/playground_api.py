@@ -75,6 +75,15 @@ def affected_cells(geometry):
     return cells
 
 
+def assess(kind,facts,reporters):
+    """Transparent POC risk policy, computed only by the selected MEC backend."""
+    severity=0 if kind=='clear' else 1 if kind=='landslide' else min(1,facts.get('water_depth_m',0)/.5) if kind=='flood' else 1-facts.get('traffic_speed_ratio',1)
+    count=len(set(reporters)-{'operator'})
+    return {'severity':round(severity,3),'priority':'cleared' if kind=='clear' else 'critical' if severity>=.8 else 'high' if severity>=.4 else 'moderate',
+            'independent_reporters':count, 'confidence':'corroborated' if count>=2 else 'single report' if count else 'operator injection',
+            'policy':'POC rules: closure=1; flood=depth/0.5m capped at 1; congestion=1-speed ratio'}
+
+
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
@@ -211,6 +220,7 @@ def create_app(legacy_post=None, state_path=None, api_key=None, legacy_http=None
     @app.get("/health")
     def health():
         return {"status": "ok", "service": SERVICE, "schema_version": 1, "delivery_revision": 2, "experiments": len(experiments),
+                'story_revision':1,
                 "h3_version": h3.__version__, "state_storage": "sqlite" if database else "memory",
                 "authentication": "bearer" if api_key else "loopback-only",
                 "coverage_model": "synthetic nearest tower within circular radius"}
@@ -309,6 +319,9 @@ def create_app(legacy_post=None, state_path=None, api_key=None, legacy_http=None
             fingerprint = hashlib.sha256(json.dumps({k: v for k, v in body.model_dump().items() if k not in ("vehicle_id", "longitude", "latitude")}, sort_keys=True).encode()).hexdigest()
             if previous and body.event_version <= previous["observation"]["event_version"]:
                 if body.event_version == previous["observation"]["event_version"] and fingerprint == previous["fingerprint"]:
+                    reporters=previous.setdefault('reporters',[previous['reporter']])
+                    if body.vehicle_id not in reporters:reporters.append(body.vehicle_id)
+                    previous['assessment']=assess(body.kind,body.facts,reporters)
                     return {"accepted": True, "deduplicated": True, "incident": previous, "network": snapshot(ctx)}
                 raise HTTPException(409, "Stale/conflicting incident version")
             now = datetime.now(timezone.utc)
@@ -317,7 +330,7 @@ def create_app(legacy_post=None, state_path=None, api_key=None, legacy_http=None
                            "expires_at": (now+timedelta(seconds=body.ttl_s)).isoformat(), "source_type": body.source_type, "facts": body.facts}
             payload = {"event_id": f"alivemap:playground:{eid}:{body.incident_id}", "vehicle_id": body.vehicle_id,
                        "latitude": body.latitude, "longitude": body.longitude, "event_type": "alivemap.playground.v1:"+json.dumps(observation, separators=(",", ":")),
-                       "severity": 0 if body.kind == "clear" else 0.7}
+                       "severity": assess(body.kind,body.facts,[body.vehicle_id])['severity']}
             try:
                 receipt = legacy(payload)
                 expected = h3.latlng_to_cell(body.latitude, body.longitude, 10)
@@ -326,6 +339,7 @@ def create_app(legacy_post=None, state_path=None, api_key=None, legacy_http=None
             except Exception as exc:
                 raise HTTPException(502, "Original MEC hazard API did not acknowledge the report") from exc
             incident = {"id": body.incident_id, "observation": observation, "h3_cells": cells, "reporter": body.vehicle_id,
+                        "reporters":[body.vehicle_id],'assessment':assess(body.kind,body.facts,[body.vehicle_id]),
                         "report_tower": associate(point, ctx["towers"]), "receipt": receipt["event"], "fingerprint": fingerprint,
                         "status": "cleared" if body.kind == "clear" else "active", "received_at": utc(), "sim_time": ctx["sim_time"]}
             ctx["incidents"][body.incident_id] = incident

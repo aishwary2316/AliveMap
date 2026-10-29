@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-29",
+  "scope": "Local Windows, real SUMO, packaged OSM graphs and local API execution",
+  "distinct_checks": 88,
+  "latest_results_passed": 88,
+  "latest_results_failed": 0,
+  "runs": [
+    {
+      "run": "full-workflow",
+      "tests": 88,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "run": "final-native-forms",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "run": "final-ui-regression",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0
+    }
+  ],
+  "notes": [
+    "The full run exposed one tab-mapping failure, fixed and rerun successfully.",
+    "Focused final UI checks passed after the native-form repair."
+  ],
+  "story_report_times_sim_seconds": {
+    "delhi_urban": [
+      7.5,
+      16.5
+    ],
+    "gujarat_coastal": [
+      13.5,
+      23.5
+    ],
+    "manipur_mantripukhri": [
+      10,
+      14
+    ],
+    "manipur_mayangkhang": [
+      44,
+      46.5
+    ]
+  },
+  "mayangkhang": "Closure has no feasible route for affected followers; safe stopping is verified, no detour invented.",
+  "physical_mec": "Authenticated HTTPS recovered to 200; story API update awaiting user authentication at recording time.",
+  "real_5g_path_verified": false
+}

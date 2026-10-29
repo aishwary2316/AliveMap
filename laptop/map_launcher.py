@@ -52,6 +52,9 @@ class MapLauncher:
             self.mode.set('Physical MEC (HTTPS / SSH)')
         self.sumo_gui = tk.BooleanVar(value=False)
         self.incident = tk.StringVar(value="Congestion")
+        self.condition=tk.StringVar(value='With incident')
+        self.last_load=None
+        self.notice=tk.StringVar(value='Choose a backend and story, then Run; New opens an empty playground.')
         self.pause_on_change = tk.BooleanVar(value=True)
         self.clock = tk.StringVar(value="SIM 00:00:00.0   |   WALL 00:00:00.0")
         self.comparison = tk.StringVar(value="Compare the same seeded trips with and without an incident.")
@@ -93,7 +96,15 @@ class MapLauncher:
         self.diagnostics.select(self.settings_page)
 
     def toggle_play(self):
+        if not self.frame:
+            self.load()
+            return
         self.send('pause' if self.frame and self.frame.get('playing') else 'play')
+
+    def reconnect(self):
+        if self.frame:self.send('refresh')
+        elif self.last_load:self.editor.open_scene(self.last_load[0],self.last_load[1])
+        else:self.load()
 
     def keyboard_play(self, event):
         if event.widget.winfo_class() not in ('TEntry', 'TCombobox', 'Text', 'Entry'):
@@ -126,6 +137,7 @@ class MapLauncher:
     def new_vehicle(self):
         self.open_playground()
         self.editor.tabs.select(self.editor.vehicle_page)
+        self.editor.tabs.update_idletasks()
         names = self.editor.scene['vehicles'] if self.editor.scene else {}
         index = 1
         while 'vehicle-'+str(index) in names:
@@ -248,17 +260,20 @@ class MapLauncher:
         self.load()
 
     def load(self, incident_kind=None):
+        if self.loading:
+            self.notice.set('A scene is loading. Please wait for ready or a connection error.')
+            return
         path = self.packages.get(self.region.get())
         if not path or self.scenario.get().startswith("Package needs"):
             self.status.set(f"Build this map first: python -m geospatial.build {self.region.get()}")
             return
-        incident_kind = incident_kind or INCIDENTS[self.incident.get()]
+        incident_kind = incident_kind or ('none' if self.condition.get()=='Without incident' else INCIDENTS[self.incident.get()])
+        self.condition.set('Without incident' if incident_kind=='none' else 'With incident')
+        self.pause_on_change.set(False)
         self.status.set("Loading identical seeded trips with "+("no incident" if incident_kind == "none" else incident_kind+" at t=20s"))
         self.story.set("No automatic incident in this run. Apply one manually whenever you want." if incident_kind == "none" else
                        "Incident at t=20s, held until Clear. The overview retains old dashed paths; routing decisions pause for inspection.")
-        options = {"mec_mode": "local" if self.mode.get().startswith("Local") else "physical", "gui": self.sumo_gui.get(),
-                   "incident_kind": incident_kind, "incident_at": 20, "pause_on_change": self.pause_on_change.get(), "playground_scene": None}
-        self.worker.commands.put(("load", (str(path), None, options)))
+        self.editor.open_scene(True,story_kind=incident_kind,autoplay=True)
         self.set_speed()
 
     def set_speed(self):
@@ -369,9 +384,9 @@ class MapLauncher:
                      if item['kind']!='frame' or latest[item.get('run_id')]==i]
             for update in updates:
                 kind = update["kind"]
-                if kind in ("ready", "report", "decision", "snapshot", "error", "finished", "route_review", "radio", "edit_error", "cleanup_error", "busy") and update.get("message"):
+                if kind in ("ready", "report", "decision", "snapshot", "error", "finished", "route_review", "radio", "edit_error", "edit_applied", "cleanup_error", "busy") and update.get("message"):
                     self.console.append(kind,update['message'],update.get('sim',0))
-                if kind == "map_loaded":
+                if kind in ('map_loaded','map_preview'):
                     self.frame = None
                     self.provider, self.scenario_data = update["provider"], update["scenario"]
                     self.canvas.set_map(self.provider, self.scenario_data)
@@ -379,7 +394,7 @@ class MapLauncher:
                     self.rate_sample = None
                     self.wall_started = time.monotonic()
                     self.console.clear()
-                    self.console.append('ready',f"Loaded {update['provider'].manifest['map_id']} · SUMO ready · scene paused",0)
+                    self.console.append('ready',f"{update['provider'].manifest['map_id']} · "+('geographic map ready; checking selected backend' if kind=='map_preview' else 'SUMO ready · editable scene loaded'),0)
                 elif kind == "frame":
                     self.epoch, self.frame = update["run_id"], update
                     backend = "LOCAL DEMO API" if update["mec_mode"] == "local" else "PHYSICAL MEC"
@@ -406,8 +421,13 @@ class MapLauncher:
                     self.show_vehicle()
                     if self.editor:
                         self.editor.update(update)
-                    if update.get("playground"):
-                        self.comparison.set("PLAYGROUND · vehicle perception → MEC H3 → tower-scoped delivery → individual routes")
+                    if update.get('narration') and not update.get('last_error'):
+                        narration=update['narration']
+                        if not update['playing'] and self.pause_on_change.get() and any(update['route_history'].values()) and not update['complete']:
+                            narration+=' Paused on route change: press Play to continue.'
+                        self.story.set(narration)
+                        if narration!=getattr(self,'_last_narration',None) and not self.canvas.edit_tool and not self.canvas.draft_geometry:self.notice.set(narration)
+                        self._last_narration=narration
                 elif kind == "scene_changed":
                     self.scenario_data = update["scenario"]
                     self.canvas.scenario = self.scenario_data
@@ -425,7 +445,14 @@ class MapLauncher:
                 elif kind == "error":
                     self.loading = False
                     self.status.set("Paused - "+update["message"])
+                    self.editor.note.set('Load failed. Select Local in Backend and load again, or reconnect MEC.')
+                    self.story.set(update['message'])
                     self.connection_led.configure(foreground='#f48771')
+                elif kind=='edit_applied':
+                    self.editor.note.set(update['message'])
+                    self.story.set(update['message'])
+                    self.canvas.draft_geometry=None
+                    self.canvas.redraw()
                 elif kind in ("loading", "finished", "route_review"):
                     if kind=='loading':
                         self.loading = True

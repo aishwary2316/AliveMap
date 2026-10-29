@@ -46,9 +46,29 @@ class SumoAdapter:
 
     def spawn(self, vehicle, route, color, position=0):
         self.provider.validate_route(route)
-        self.connection.route.add(vehicle+"-initial", route)
-        self.connection.vehicle.add(vehicle, vehicle+"-initial", depart="now", departPos=str(position), departSpeed="0")
+        route_id=vehicle+'-initial'
+        known=self.connection.route.getIDList()
+        if route_id in known:route_id=vehicle+'-placement-'+str(len(known))
+        self.connection.route.add(route_id, route)
+        self.connection.vehicle.add(vehicle, route_id, depart="now", departPos=str(position), departSpeed="0")
         self.connection.vehicle.setColor(vehicle, color)
+
+    def relocate(self,name,route,position,color):
+        """Explicit paused operator placement, not an autonomously driven segment."""
+        vehicle=self.connection.vehicle
+        edge=route[0]
+        lane=next(i for i in range(self.connection.edge.getLaneNumber(edge))
+            if not self.connection.lane.getAllowed(edge+'_'+str(i)) or 'passenger' in self.connection.lane.getAllowed(edge+'_'+str(i)))
+        x,y=self.connection.simulation.convert2D(edge,position,lane)
+        for other in vehicle.getIDList():
+            if other!=name:
+                ox,oy=vehicle.getPosition(other)
+                if (x-ox)**2+(y-oy)**2<100:raise ValueError('Choose a placement at least 10 m from another active vehicle')
+        # Reinsertion supports disconnected manual placements without advancing
+        # the paused world. SUMO safely inserts this new segment on the next step.
+        vehicle.remove(name)
+        self.spawn(name,route,color,position)
+        self._state_cache.pop(name,None)
 
     def step(self):
         self._state_cache.clear()

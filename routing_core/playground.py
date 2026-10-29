@@ -85,3 +85,24 @@ def example_scene(provider, scenario):
     scene["anomalies"] = [{"id": "anomaly-1", "kind": scenario["hazard"]["kind"], "geometry": deepcopy(scenario["hazard"]["geometry"]),
                            "ttl_s": 1800, "water_depth_m": 0.25, "traffic_speed_ratio": 0.08, "detect_m": 20}]
     return validate_scene(provider, scene)
+
+
+def story_scene(provider,scenario,kind=None):
+    """Two sensor-only scouts corroborate an anomaly; followers route themselves."""
+    scene=example_scene(provider,scenario)
+    scene['vehicles'].pop('probe',None)
+    for vehicle in scene['vehicles'].values():vehicle['role']='receiver'
+    trip=scene['vehicles']['cautious']
+    route,_=VehicleAgent(provider,PROFILES[trip['profile']]).route(trip['origin'],trip['destination'])
+    anchor=scenario['hazard']['anchor_edge']
+    if anchor not in route:raise ValueError('The demonstration anomaly is not on the computed trip')
+    index=route.index(anchor)
+    for number,offset in ((1,2),(2,3)):
+        scene['vehicles'][f'scout-{number}']={'origin':route[max(0,index-offset)],
+            'destination':route[min(len(route)-1,index+2)],'profile':'time_sensitive','role':'reporter'}
+    if kind=='none':scene['anomalies']=[]
+    elif kind:
+        scene['anomalies'][0]['kind']=kind
+    scene['story']={'condition':'none' if kind=='none' else 'incident',
+        'description':'Two independent scouts detect and report; MEC classifies and corroborates; each receiver computes its route.'}
+    return validate_scene(provider,scene)

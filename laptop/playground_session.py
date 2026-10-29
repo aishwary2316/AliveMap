@@ -19,10 +19,12 @@ class PlaygroundSession(GeoSession):
         self.handles_network_poll = True
         self.last_network_wall = 0
         self.last_upload_tick = {}
+        self.reported=set()
+        self.operator_versions=set()
         self._sensor_areas = {}
         super().__init__(args, emit, http)
         self.used_ids.update(self.fleet)
-        self.run_condition = "playground"
+        self.run_condition = (self.scene['anomalies'][0]['kind'] if self.scene['anomalies'] else 'none') if self.scene.get('story') else 'playground'
 
     def make_client(self, http):
         return PlaygroundClient(getattr(self.args, "playground_url", "http://127.0.0.1:18767"), self.run_id,
@@ -30,7 +32,11 @@ class PlaygroundSession(GeoSession):
 
     @property
     def complete(self):
-        return False
+        if not getattr(self,'scene',{}).get('story'):return False
+        followers={name for name,v in self.fleet.items() if v.get('role')=='receiver'}
+        reported={key[0] for key in self.reported}
+        corroborated=not self.scene['anomalies'] or {'scout-1','scout-2'}.issubset(reported)
+        return bool(followers) and followers.issubset(self.arrived|self.blocked) and corroborated
 
     def radio(self, message, **data):
         record = {"sim_time": self.sim_time, "message": message, **data}
@@ -126,16 +132,19 @@ class PlaygroundSession(GeoSession):
             return False
         self.published[anomaly["id"]] = payload["event_version"]
         record = response["incident"]
+        assessment=record.get('assessment',{})
         self.radio(f"{reporter} → MEC ACK: {anomaly['id']} {payload['kind']}; H3 r8={len(record['h3_cells']['8'])}, r10={len(record['h3_cells']['10'])}",
                    vehicle=reporter, incident=anomaly["id"], stage="acknowledged")
+        if assessment:self.radio(f"MEC assessed {anomaly['id']}: severity {assessment['severity']}, priority {assessment['priority']}, {assessment['independent_reporters']} reporter(s), {assessment['confidence']}",incident=anomaly['id'],stage='assessed')
         return True
 
     def detect(self):
         acknowledged = False
         active = set(self.connection.vehicle.getIDList())
         for anomaly in self.scene["anomalies"]:
-            if anomaly.get("disabled") or self.published.get(anomaly["id"], 0) >= anomaly.get("event_version", 1):
+            if anomaly.get("disabled"):
                 continue
+            if (anomaly['id'],anomaly.get('event_version',1)) in self.operator_versions:continue
             stamp = anomaly.get('event_version',1)
             cached = self._sensor_areas.get(anomaly['id'])
             if not cached or cached[0] != stamp:
@@ -147,6 +156,7 @@ class PlaygroundSession(GeoSession):
                     continue
                 state = self.adapter.vehicle_state(name)
                 key = (name, anomaly["id"], anomaly.get("event_version", 1))
+                if key in self.reported:continue
                 if key not in self.detected:
                     # A synthetic sensor sees the area within a bounded local radius.
                     if area.distance(Point(*state["position"])) > anomaly.get("detect_m", 20):
@@ -171,6 +181,7 @@ class PlaygroundSession(GeoSession):
                     self.refresh()
                 self.last_upload_tick[key] = self.sim_time
                 if self.send_observation(anomaly, name, state["lonlat"]):
+                    self.reported.add(key)
                     acknowledged = True
                     break
         return acknowledged
@@ -210,6 +221,7 @@ class PlaygroundSession(GeoSession):
 
     def edit(self, operation, payload):
         candidate = deepcopy(self.scene)
+        candidate.pop('story',None)
         name = payload.get("id")
         if operation in ("vehicle", "remove_vehicle"):
             if operation == "remove_vehicle":
@@ -230,6 +242,8 @@ class PlaygroundSession(GeoSession):
                 anomaly["event_version"] = max(anomaly.get("event_version", 1), self.published.get(name, 0))+1
             centroid = self.provider.geometry_to_xy(anomaly["geometry"]).centroid
             self.send_observation(anomaly, "operator", self.provider.xy_to_lonlat(centroid.x, centroid.y), "clear" if operation == "clear" else None)
+            self.operator_versions.add((name,anomaly.get('event_version',1)))
+            self.scene.pop('story',None);self.run_condition='playground'
             if operation == "clear":
                 anomaly["disabled"] = True
             self.refresh()
@@ -242,10 +256,14 @@ class PlaygroundSession(GeoSession):
         if operation == "vehicle":
             vehicle = candidate["vehicles"][name]
             if name in self.fleet:
-                # Existing vehicles retain their actual position. Placement changes use
-                # a new ID, preserving truthful trajectories and SUMO insertion safety.
                 if any(vehicle.get(k, 0) != self.fleet[name].get(k, 0) for k in ("origin", "position_m")):
-                    raise ValueError("To relocate a vehicle, remove it and add a new ID at the desired origin")
+                    route,_=VehicleAgent(self.provider,PROFILES[vehicle['profile']]).route(vehicle['origin'],vehicle['destination'])
+                    rgb=color_for(name).lstrip('#')
+                    self.adapter.relocate(name,route,vehicle.get('position_m',0),tuple(int(rgb[i:i+2],16) for i in (0,2,4)))
+                    self.baseline[name]=route;self.planned_routes[name]=list(route);self.driven_edges[name]=[]
+                    self.route_history[name]=[];self.reroute_counts[name]=0;self.blocked.discard(name)
+                    self.applied.pop(name,None)
+                    self.radio(f'{name}: operator relocated vehicle to {vehicle["origin"]}; a new driving segment starts here',vehicle=name,stage='manual_placement')
                 current = self.adapter.vehicle_state(name)["edge"] if name in self.connection.vehicle.getIDList() else vehicle["origin"]
                 if not current.startswith(":") and VehicleAgent(self.provider, PROFILES[vehicle["profile"]]).route(current, vehicle["destination"])[0] is None:
                     raise ValueError("Destination is unreachable from the vehicle's current directed road")
@@ -273,6 +291,7 @@ class PlaygroundSession(GeoSession):
         if "tower" in operation:
             self.client.set_towers(candidate["towers"])
         self.scene = candidate
+        self.run_condition='playground'
         self.fleet = self.scenario["vehicles"] = self.scene["vehicles"]
         self.refresh()
 
@@ -292,6 +311,16 @@ class PlaygroundSession(GeoSession):
                      knowledge={n: sorted(facts) for n, facts in self.knowledge.items()},
                      detected=[{"vehicle": key[0], "incident": key[1], "version": key[2]} for key in self.detected],
                      published=self.published.copy())
+        if self.scene.get('story'):
+            records=self.network.get('incidents',[])
+            reports=max((len(r.get('reporters',[r['reporter']])) for r in records),default=0)
+            changes=sum(self.reroute_counts.values())
+            frame['narration']=('Baseline: identical vehicles and trips, no anomaly. Compare routes and arrival times.' if not self.scene['anomalies'] else
+                '1 · Scouts are sensing independently. No MEC incident has been received yet.' if not reports else
+                f'2 · First scout reported. MEC computed affected H3 cells and risk; waiting for independent corroboration. Route changes: {changes}.' if reports==1 else
+                f'3 · {reports} independent scouts reported. MEC corroborated the incident and delivered through simulated tower coverage. Actual route changes: {changes}. Solid=current, dashed=previous.')
+            if self.complete:frame['narration']='4 · Story finished: followers arrived or stopped safely. Compare the baseline, replay, or edit the scene.'
+            if self.blocked:frame['narration']+=' No feasible route: '+', '.join(sorted(self.blocked))+' stopped safely.'
         return frame
 
     def close(self):

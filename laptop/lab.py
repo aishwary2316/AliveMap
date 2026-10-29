@@ -35,7 +35,9 @@ class LabWorker(threading.Thread):
     def reset(self, automatic=False):
         self.playing, self.healthy = False, False
         if self.session:
-            self.session.close()
+            try:self.session.close()
+            except Exception as exc:
+                self.emit('cleanup_error',message='Previous experiment cleanup could not be confirmed; retained on MEC for retry. '+str(exc))
         self.session = None
         backend = "local demo API" if getattr(self.args, "mec_mode", "physical") == "local" else "physical MEC"
         self.emit("loading", message=f"Loading SUMO and checking {backend}…")
@@ -118,17 +120,22 @@ class LabWorker(threading.Thread):
                 try:
                     if action == 'prepare_scene':
                         from routing_core.maps import PackageMapProvider, read_json
-                        from routing_core.playground import example_scene, empty_scene
+                        from routing_core.playground import example_scene, empty_scene, story_scene
                         path, example, options = value
                         self.emit('loading',message='Preparing geographic map in background…')
                         provider = PackageMapProvider(path)
-                        scene = example_scene(provider, read_json(provider.path/provider.manifest['scenario'])) if example else empty_scene(provider)
+                        scene = (story_scene(provider,read_json(provider.path/provider.manifest['scenario']),options.get('story_kind'))
+                                 if options.get('story_kind') else example_scene(provider, read_json(provider.path/provider.manifest['scenario'])) if example else empty_scene(provider))
+                        # Show the selected geographic map before any network check.
+                        preview=read_json(provider.path/provider.manifest['scenario'])
+                        self.emit('map_preview',provider=provider,scenario=preview)
                         self.args.map_package, self.args.scenario = str(provider.path), None
                         self.args._prepared_provider = provider
                         for key, setting in options.items():
                             setattr(self.args,key,setting)
                         self.args.playground_scene = scene
                         self.reset(False)
+                        self.playing=bool(options.get('autoplay',False))
                     elif action == "load":
                         self.args._prepared_provider = None
                         self.args.map_package, self.args.scenario = value[:2]
@@ -156,6 +163,10 @@ class LabWorker(threading.Thread):
                                 self.session.edit(*value)
                                 self.args.playground_scene = self.session.export_scene()
                                 self.emit("scene_changed", scenario=self.session.scenario)
+                                message='Applied '+value[0].replace('_',' ')+' · '+str(value[1].get('id',''))
+                                if self.session.scene['vehicles'] and not self.session.scene['towers']:
+                                    message+=' · No tower coverage: add a tower to enable reports and delivery.'
+                                self.emit('edit_applied',message=message,operation=value[0])
                             except (ValueError, KeyError, StopIteration) as exc:
                                 self.emit("edit_error", message="Edit rejected: "+str(exc))
                         elif action == "play":
@@ -193,7 +204,7 @@ class LabWorker(threading.Thread):
                                 self.last_poll = time.monotonic()
                             if self.session.complete:
                                 self.playing = False
-                                self.emit("finished", sim=self.session.sim_time, message="All vehicles arrived. Reset to explore again.")
+                                self.emit("finished", sim=self.session.sim_time, message="Story finished: vehicles arrived or stopped safely where no route exists. Replay or edit to explore again.")
                     self.review_route_changes()
                     self.publish()
                 except Exception as exc:

@@ -123,6 +123,7 @@ class MapCanvas(tk.Canvas):
         self._previews = {}
         self.wanted = set()
         self.edit_callback, self.edit_points, self.edit_tool = None, [], None
+        self.draft_geometry=None
         self.pins, self.pin_callback, self.pin_start, self.drag_pin = {}, None, None, None
         self.on_vehicle_select = None
         self._overlay_mode = True
@@ -142,6 +143,7 @@ class MapCanvas(tk.Canvas):
     def set_map(self, provider, scenario):
         self.provider, self.scenario, self.frame = provider, scenario, None
         self.pins = {}
+        self.draft_geometry=None
         self._grid_cache.clear(); self._boundary_cache.clear()
         self.follow, self.selected = True, next(iter(scenario["vehicles"]), "")
         if self.selected:
@@ -212,7 +214,7 @@ class MapCanvas(tk.Canvas):
         self.change_zoom(1 if event.delta > 0 else -1)
 
     def begin_drag(self, event):
-        for name, ll in self.pins.items():
+        for name, ll in (self.pins.items() if not self.edit_tool else ()):
             x,y = self.screen(*ll)
             if math.hypot(x-event.x,y-18-event.y) <= 16:
                 self.drag_pin = name
@@ -237,6 +239,12 @@ class MapCanvas(tk.Canvas):
         self.status("Click the map: "+tool+". Polygon: click vertices then Finish shape in tools. Cancel exits drawing.")
 
     def finish_edit(self):
+        if not self.edit_callback:
+            self.status('No drawing is active. Choose a shape or placement tool first.')
+            return
+        if self.edit_tool=='polygon' and len(self.edit_points)<3:
+            self.status('Polygon needs at least three vertices. Keep clicking, then Finish.')
+            return
         callback, points = self.edit_callback, list(self.edit_points)
         self.cancel_edit()
         if callback:
@@ -244,6 +252,7 @@ class MapCanvas(tk.Canvas):
 
     def cancel_edit(self):
         self.edit_tool, self.edit_callback, self.edit_points = None, None, []
+        self._last_tile_status=None
         self.configure(cursor="")
         self.redraw()
 
@@ -326,10 +335,10 @@ class MapCanvas(tk.Canvas):
         kw['tags'] = (*tags, 'overlay' if getattr(self, '_overlay_mode', True) else 'tiles')
         return super()._create(itemType,args,kw)
 
-    def redraw(self):
+    def redraw(self,delay=16):
         # Coalesce mouse, timer, tile and simulation events into one paint.
         if not self.closed and self._redraw_timer is None:
-            self._redraw_timer=self.after(16,self._redraw_now)
+            self._redraw_timer=self.after(delay,self._redraw_now)
 
     def _redraw_now(self):
         self._redraw_timer=None
@@ -349,6 +358,16 @@ class MapCanvas(tk.Canvas):
         self.wanted = {(self.source.name, self.zoom, tx % 2**self.zoom, ty)
                        for tx in range(math.floor(left/256), math.floor((left+width)/256)+1)
                        for ty in range(math.floor(top/256), math.floor((top+height)/256)+1) if 0 <= ty < 2**self.zoom}
+        # Upload BEFORE touching retained canvas items. Otherwise moving the
+        # already-visible items can consume the budget every time, permanently
+        # starving the remaining uploads and the native form geometry queue.
+        self._upload_deadline=time.perf_counter()+.008
+        for key in self.wanted:
+            candidate=key if key in self.tiles else ('offline:'+str(id(self.provider)),*key[1:])
+            if candidate in self.tiles:self.photo(candidate)
+            if key not in self.tiles:self.parent_preview(key)
+            grid=('grid:',*key[1:])
+            if self.show_cells and grid in self.tiles:self.photo(grid)
         for key in set(self._tile_items)-self.wanted:
             self.delete(self._tile_items.pop(key)[0])
         for tx in range(math.floor(left/256), math.floor((left+width)/256)+1):
@@ -411,6 +430,10 @@ class MapCanvas(tk.Canvas):
             for ll in self.edit_points:
                 x, y = self.screen(*ll)
                 self.create_oval(x-4, y-4, x+4, y+4, fill="#7c3aed")
+        if self.draft_geometry:
+            flat=[v for ll in self.draft_geometry['coordinates'][0] for v in self.screen(*ll)]
+            self.create_polygon(*flat,outline='#ffb454',fill='',width=3,dash=(6,3),tags='draft')
+            self.create_text(flat[0],flat[1]-14,text='UNSAVED AREA · Save area to apply',anchor='w',fill='#b45309',tags='draft')
         self.create_rectangle(0,height-19,width,height,fill='#1f1f1f',outline='')
         self.create_text(8,height-10,text=self.source.attribution,anchor='w',font=('Segoe UI',8),fill='#a0a0a0')
         metres_per_pixel = 156543.033928*math.cos(math.radians(self.center[1]))/2**self.zoom
@@ -433,7 +456,7 @@ class MapCanvas(tk.Canvas):
             self.status(f'{self.source.name} · {available}/{len(self.wanted)} background tiles · '+
                 ('ready' if available==len(self.wanted) else 'background unavailable; local OSM roads remain usable' if tile_status[3] else 'loading in background; local OSM roads remain usable'))
         self._drawing=False
-        if self._needs_upload:self.redraw()
+        if self._needs_upload:self.redraw(delay=80)
 
     def photo(self,key):
         if key not in self.photos:
@@ -508,6 +531,14 @@ class MapCanvas(tk.Canvas):
                 self.create_line(*flat, fill=color_for(name), width=4)
                 x, y = points[-1]
                 self.create_text(x, y-12, text=label_for(name)+" destination", fill=color_for(name), font=("Segoe UI", 10, "bold"))
+        from .route_drawing import retired_runs
+        for name,records in frame.get('route_history',{}).items():
+            if name!=self.selected and not self.all_routes:continue
+            current=frame.get('planned_routes',{}).get(name,[])
+            for record in records[-4:]:
+                for run in retired_runs(record['old'],current):
+                    flat=[v for eid in run if eid in self.provider.edges for ll in self.provider.edges[eid]['shape_wgs84'] for v in self.screen(*ll)]
+                    if len(flat)>=4:self.create_line(*flat,fill=color_for(name),width=3,dash=(6,4),tags='old-route')
         for fact in frame.get("facts", []):
             geometries = [fact["geometry"]["coordinates"]] if fact["geometry"]["type"] == "Polygon" else fact["geometry"]["coordinates"]
             for coords in geometries:
@@ -533,11 +564,13 @@ class MapCanvas(tk.Canvas):
                          (x-forward[0]*5-right[0]*5, y-forward[1]*5-right[1]*5)]
                 self.create_polygon(*[v for point in arrow for v in point], fill="white", outline="")
             text = f"{label_for(name)} · {state['speed']*3.6:.0f} km/h" if state else label_for(name)+" · "+status
+            if name in frame.get('blocked',[]):text=label_for(name)+' · STOPPED: no feasible route'
             offset = {"cautious": -38, "standard": -18, "unaffected": 18}.get(name, -24)
             self.create_text(x+17, y+offset+1, anchor="w", text=text, font=("Segoe UI", 11, "bold"), fill="white", width=220)
             self.create_text(x+16, y+offset, anchor="w", text=text, font=("Segoe UI", 11, "bold"), fill=color_for(name), width=220)
 
     def select_vehicle(self, name):
+        if self.edit_tool:return
         if self.on_vehicle_select:
             self.on_vehicle_select(name)
         else:
