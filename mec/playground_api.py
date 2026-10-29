@@ -8,13 +8,18 @@ import hashlib
 import json
 import math
 import os
+import sqlite3
+import secrets
 from datetime import datetime, timedelta, timezone
 from threading import RLock
-from urllib.request import Request, urlopen
+from urllib.request import Request, urlopen, build_opener, ProxyHandler
+from urllib.error import HTTPError
 from uuid import UUID
+from pathlib import Path
 
 import h3
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request as HttpRequest
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 SERVICE = "alivemap-playground-mec"
@@ -113,10 +118,47 @@ class SensorReport(StrictModel):
     source_type: str = "simulated_perception"
 
 
-def create_app(legacy_post=None):
+def create_app(legacy_post=None, state_path=None, api_key=None, legacy_http=None):
     app = FastAPI(title="AliveMap MEC Playground", version="1.0")
+    api_key = api_key or os.environ.get('ALIVEMAP_API_KEY')
+    if api_key and len(api_key) < 32:
+        raise ValueError('Configured API key must contain at least 32 characters')
+
+    @app.middleware('http')
+    async def authenticate(request, call_next):
+        supplied = request.headers.get('Authorization', '')
+        if api_key and not secrets.compare_digest(supplied.encode(), ('Bearer '+api_key).encode()):
+            return JSONResponse({'detail': 'Authentication required'}, status_code=401,
+                                headers={'WWW-Authenticate': 'Bearer'})
+        return await call_next(request)
     experiments, lock = {}, RLock()
     app.state.experiments = experiments
+    database = None
+    state_path = state_path or os.environ.get('ALIVEMAP_STATE_DB')
+    if state_path:
+        path = Path(state_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        database = sqlite3.connect(path, check_same_thread=False)
+        database.execute('PRAGMA journal_mode=WAL')
+        database.execute('PRAGMA synchronous=FULL')
+        version = database.execute('PRAGMA user_version').fetchone()[0]
+        if version not in (0, 1):
+            raise ValueError('Unsupported playground state database schema; refusing to overwrite')
+        database.execute('CREATE TABLE IF NOT EXISTS experiments (id TEXT PRIMARY KEY, body TEXT NOT NULL)')
+        database.execute('PRAGMA user_version=1')
+        database.commit()
+        for eid, body in database.execute('SELECT id, body FROM experiments'):
+            ctx = json.loads(body)
+            ctx['delivered'] = {name: set(ids) for name, ids in ctx['delivered'].items()}
+            experiments[eid] = ctx
+    app.state.database = database
+
+    def persist(ctx):
+        if database:
+            data = {**ctx, 'delivered': {name: sorted(ids) for name, ids in ctx['delivered'].items()}}
+            with database:
+                database.execute('INSERT INTO experiments(id,body) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body',
+                                 (ctx['id'], json.dumps(data, separators=(',', ':'))))
 
     def legacy(payload):
         if legacy_post:
@@ -161,6 +203,7 @@ def create_app(legacy_post=None):
                         received.append(incident)
                         known_ids.add(incident["id"])
             deliveries[vehicle["id"]] = received
+        persist(ctx)
         return {"experiment_id": ctx["id"], "map_id": ctx["map_id"], "sim_time": ctx["sim_time"],
                 "towers": ctx["towers"], "associations": associations, "incidents": list(ctx["incidents"].values()),
                 "deliveries": deliveries, "transport": "HTTP polling; tower-scoped application fan-out is simulated, not RF broadcast"}
@@ -168,7 +211,35 @@ def create_app(legacy_post=None):
     @app.get("/health")
     def health():
         return {"status": "ok", "service": SERVICE, "schema_version": 1, "delivery_revision": 2, "experiments": len(experiments),
-                "h3_version": h3.__version__, "coverage_model": "synthetic nearest tower within circular radius"}
+                "h3_version": h3.__version__, "state_storage": "sqlite" if database else "memory",
+                "authentication": "bearer" if api_key else "loopback-only",
+                "coverage_model": "synthetic nearest tower within circular radius"}
+
+    @app.api_route('/legacy/{resource}', methods=['GET', 'POST'])
+    async def compatibility(resource: str, request: HttpRequest):
+        # Preserve older guided/grid controllers through the same authenticated
+        # endpoint. Only these reviewed baseline routes may be forwarded.
+        if resource not in ('health', 'openapi.json', 'hazards'):
+            raise HTTPException(404, 'Unknown compatibility route')
+        if request.method == 'POST' and resource != 'hazards':
+            raise HTTPException(405, 'Method not supported')
+        body = await request.body() if request.method == 'POST' else None
+        if legacy_http is not None:
+            response = legacy_http.request(request.method, '/'+resource, content=body,
+                                           headers={'Content-Type': 'application/json'})
+            return JSONResponse(response.json(), status_code=response.status_code)
+        url = os.environ.get('ALIVEMAP_LEGACY_URL', 'http://127.0.0.1:8765').rstrip('/')+'/'+resource
+        from asyncio import to_thread
+        def forward():
+            outgoing = Request(url, data=body, method=request.method, headers={'Content-Type': 'application/json'})
+            try:
+                with build_opener(ProxyHandler({})).open(outgoing, timeout=5) as response:
+                    return JSONResponse(json.load(response), status_code=response.status)
+            except HTTPError as exc:
+                return JSONResponse(json.load(exc), status_code=exc.code)
+            except OSError as exc:
+                raise HTTPException(502, 'Original baseline API unavailable') from exc
+        return await to_thread(forward)
 
     @app.post("/v1/experiments")
     def register(body: Experiment):
@@ -278,6 +349,9 @@ def create_app(legacy_post=None):
                         raise ValueError("Unacknowledged cleanup")
                 except Exception as exc:
                     raise HTTPException(502, "Cleanup failed; experiment retained for retry") from exc
+            if database:
+                with database:
+                    database.execute('DELETE FROM experiments WHERE id=?', (eid,))
             del experiments[eid]
             return {"closed": True, "experiment_id": eid}
 

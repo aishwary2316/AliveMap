@@ -240,7 +240,7 @@ class PlaygroundSession(GeoSession):
 
     def frame(self):
         frame = super().frame()
-        frame.update(playground=True, scene=deepcopy(self.scene), network=deepcopy(self.network), radio_events=deepcopy(self.radio_events),
+        frame.update(playground=True, mec_endpoint=self.client.endpoint_url, scene=deepcopy(self.scene), network=deepcopy(self.network), radio_events=deepcopy(self.radio_events),
                      knowledge={n: sorted(facts) for n, facts in self.knowledge.items()},
                      detected=[{"vehicle": key[0], "incident": key[1], "version": key[2]} for key in self.detected],
                      published=self.published.copy())

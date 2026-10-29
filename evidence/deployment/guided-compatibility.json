@@ -1,0 +1,9 @@
+{
+  "backend": "authenticated HTTPS",
+  "checks": {
+    "schema_preflight_through_authenticated_https": true,
+    "connected_vehicles": true,
+    "blue_avoids_affected_roads": true,
+    "orange_independent_policy_retains_affected_roads": true
+  }
+}

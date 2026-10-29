@@ -1,0 +1,24 @@
+[Unit]
+Description=AliveMap reviewed baseline availability supervisor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@BASELINE_DIR@
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=@PYTHON@ @WATCH_SCRIPT@ --baseline @BASELINE_DIR@ --lock /var/lib/alivemap/baseline.lock
+Restart=on-failure
+RestartSec=5
+StateDirectory=alivemap
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/alivemap
+
+[Install]
+WantedBy=multi-user.target

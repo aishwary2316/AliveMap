@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 import h3
 import httpx
+from .endpoint import endpoint, DEFAULT_URL
 from pydantic import BaseModel, ConfigDict, Field
 
 SEMANTIC_FIELDS = ("event_id", "vehicle_id", "latitude", "longitude", "event_type", "severity")
@@ -33,12 +34,21 @@ def revision(events):
 
 class MecClient:
     def __init__(self, url, run, network_id, http=None, semantics_url=None):
-        parsed = urlparse(url)
-        if parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1"):
-            raise ValueError("Use the loopback URL of an SSH local forward")
         self.prefix = f"alivemap:{network_id}:{run}:"
-        self.http = http or httpx.Client(base_url=url.rstrip("/"), timeout=5, trust_env=False,
-                                         limits=httpx.Limits(max_keepalive_connections=0))
+        self.remote_https = False
+        if http is None:
+            selected, headers = endpoint(url)
+            if url is None and selected == DEFAULT_URL:
+                selected = 'http://127.0.0.1:18765'
+            if selected.startswith('https://'):
+                self.remote_https = True
+                selected += '/legacy'
+                semantics_url = None
+            self.http = httpx.Client(base_url=selected, headers=headers, timeout=10, trust_env=False,
+                                     verify=True, follow_redirects=False,
+                                     limits=httpx.Limits(max_keepalive_connections=10 if self.remote_https else 0))
+        else:
+            self.http = http
         self.semantics_url = semantics_url
         if semantics_url:
             parsed = urlparse(semantics_url)
@@ -58,8 +68,9 @@ class MecClient:
             raise ValueError("Running API schema differs from the reviewed baseline")
 
     def get(self, path, **kwargs):
-        """Retry a lost/5xx read once; never manufacture an empty state."""
-        for attempt in range(2):
+        """Bounded read retries; never manufacture an empty state."""
+        attempts = 5 if self.remote_https else 2
+        for attempt in range(attempts):
             try:
                 response = self.http.get(path, **kwargs)
                 response.raise_for_status()
@@ -67,9 +78,9 @@ class MecClient:
             except (httpx.TransportError, httpx.HTTPStatusError) as exc:
                 if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code < 500:
                     raise
-                if attempt == 1:
+                if attempt == attempts-1:
                     raise
-                time.sleep(0.15)
+                time.sleep(min(.5*2**attempt,2) if self.remote_https else .15)
 
     def report(self, state, lat, lon):
         payload = dict(event_id=self.prefix + "demo-road", vehicle_id="probe",

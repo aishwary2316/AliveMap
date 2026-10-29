@@ -45,6 +45,8 @@ class MapLauncher:
         self.map = tk.StringVar(value="Delhi Urban")
         self.region, self.scenario = tk.StringVar(), tk.StringVar()
         self.mode, self.speed, self.layer = tk.StringVar(value="Local demo (no SSH)"), tk.StringVar(value="20x"), tk.StringVar(value="Streets")
+        if getattr(args, 'remote', False):
+            self.mode.set('Physical MEC (HTTPS / SSH)')
         self.sumo_gui = tk.BooleanVar(value=False)
         self.incident = tk.StringVar(value="Congestion")
         self.pause_on_change = tk.BooleanVar(value=True)
@@ -89,7 +91,7 @@ class MapLauncher:
         self.combo(controls, "Incident", self.incident, list(INCIDENTS))
         self.map_box.bind("<<ComboboxSelected>>", lambda e: self.select_map())
         self.region_box.bind("<<ComboboxSelected>>", lambda e: self.select_region())
-        self.combo(controls, "MEC", self.mode, ["Local demo (no SSH)", "Physical MEC (SSH)"])
+        self.combo(controls, "MEC", self.mode, ["Local demo (no SSH)", "Physical MEC (HTTPS / SSH)"])
         ttk.Checkbutton(controls, text="Also open native SUMO window", variable=self.sumo_gui).pack(anchor="w", pady=3)
         self.button_row(controls, [("Run without incident", lambda: self.load("none")), ("Run with incident", self.load)])
         self.button_row(controls, [("Pause", lambda: self.send("pause")), ("Resume", lambda: self.send("play"))])
@@ -297,6 +299,8 @@ class MapLauncher:
                     if not self.rate_sample or now-self.rate_sample[0] >= 2:
                         self.rate_sample = (now, update["time"])
                     self.status.set(f"{update['map_id']} · {'Running' if update['playing'] else 'Paused'} · target {update['requested_speed']:g}x{rate} · {backend} · {update['state']} · {len(update['vehicles'])} active / {len(update['arrived'])} arrived")
+                    if update['mec_mode'] == 'physical' and update.get('mec_endpoint'):
+                        self.status.set(self.status.get()+' · '+update['mec_endpoint'])
                     if update.get("last_error"):
                         self.story.set("Paused: "+update["last_error"])
                     self.canvas.update_frame(update)
@@ -341,11 +345,12 @@ class MapLauncher:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mec-url", default="http://127.0.0.1:18765")
+    parser.add_argument("--mec-url", default=None)
     parser.add_argument("--semantics-url", default=None)
-    parser.add_argument("--playground-url", default="http://127.0.0.1:18767")
+    parser.add_argument("--playground-url", default=None, help="Override private MEC endpoint configuration")
     parser.add_argument("--output", default="runs/maps")
     parser.add_argument("--playground", action="store_true", help="Open the editable scenario tools on launch")
+    parser.add_argument('--remote', action='store_true', help='Select the configured physical MEC backend')
     args = parser.parse_args()
     args.gui, args.defer_start, args.map_package, args.scenario, args.mec_mode = False, True, None, None, "local"
     root = tk.Tk()

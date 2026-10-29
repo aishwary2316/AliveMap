@@ -1,0 +1,21 @@
+{
+  "recorded_at": "2026-10-29T06:44:22.459771+00:00",
+  "checks": {
+    "automatic_restart_after_controlled_crash": true,
+    "incident_and_receipt_survived_restart": true,
+    "deduplication_survived_restart": true,
+    "preexisting_baseline_records_unchanged": true,
+    "original_cloudflared_process_unchanged": true,
+    "original_tunnel_configuration_unchanged": true,
+    "original_baseline_source_unchanged": true,
+    "test_experiment_cleaned": true,
+    "alivemap-baseline-watch.service_active": true,
+    "alivemap-baseline-watch.service_enabled_for_boot": true,
+    "alivemap-playground.service_active": true,
+    "alivemap-playground.service_enabled_for_boot": true,
+    "alivemap-tunnel.service_active": true,
+    "alivemap-tunnel.service_enabled_for_boot": true
+  },
+  "reboot_performed": false,
+  "existing_applications_restarted": false
+}

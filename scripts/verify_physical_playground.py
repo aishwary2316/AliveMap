@@ -17,13 +17,15 @@ import httpx
 from laptop.map_launcher import available_packages
 from laptop.playground_session import PlaygroundSession
 from laptop.geo_session import GeoSession
+from laptop.endpoint import endpoint
 from routing_core.maps import PackageMapProvider, read_json
 from routing_core.playground import example_scene
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def verify(url, map_id):
+def verify(url, map_id, evidence=None):
+    url, headers = endpoint(url)
     packages = available_packages()
     provider = PackageMapProvider(packages[map_id])
     scene = example_scene(provider, read_json(provider.path/provider.manifest['scenario']))
@@ -40,7 +42,7 @@ def verify(url, map_id):
     def emit(kind, **data):
         if kind in ('ready', 'radio'):
             print(data.get('message', kind), flush=True)
-    with httpx.Client(base_url=url, trust_env=False, timeout=10) as observer:
+    with httpx.Client(base_url=url, headers=headers, trust_env=False, verify=True, follow_redirects=False, timeout=10) as observer:
         health = observer.get('/health'); health.raise_for_status()
         initial_count = health.json()['experiments']
         session = PlaygroundSession(args, emit)
@@ -116,7 +118,8 @@ def verify(url, map_id):
             session.close()
         check('both physical test experiments cleaned', observer.get('/health').json()['experiments'] == initial_count)
         result['checks'] = checks
-        target = ROOT/'evidence/playground/physical-verification.json'
+        target = Path(evidence) if evidence else ROOT/'evidence/playground/physical-verification.json'
+        target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
         print(f'PHYSICAL_PLAYGROUND_VERIFIED: {len(checks)} checks passed; {target}', flush=True)
         return result
@@ -127,5 +130,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url', default='http://127.0.0.1:18767')
     parser.add_argument('--map-id', default='delhi_urban')
+    parser.add_argument('--evidence', help='Optional separate evidence file; preserves earlier physical run records')
     options = parser.parse_args()
-    verify(options.url, options.map_id)
+    verify(options.url, options.map_id, options.evidence)

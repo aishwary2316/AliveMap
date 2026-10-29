@@ -1,0 +1,28 @@
+[Unit]
+Description=AliveMap persistent MEC API
+After=network-online.target alivemap-baseline-watch.service
+Wants=network-online.target
+Requires=alivemap-baseline-watch.service
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@APP_DIR@
+EnvironmentFile=/etc/alivemap/api.env
+Environment=ALIVEMAP_STATE_DB=/var/lib/alivemap/playground.sqlite3
+Environment=ALIVEMAP_LEGACY_URL=http://127.0.0.1:8765
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=@PYTHON@ -m uvicorn playground_api:app --app-dir @APP_DIR@ --host 127.0.0.1 --port 8768 --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=3
+StateDirectory=alivemap
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/alivemap
+
+[Install]
+WantedBy=multi-user.target

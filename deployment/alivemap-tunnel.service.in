@@ -1,0 +1,19 @@
+[Unit]
+Description=AliveMap dedicated Cloudflare connector
+After=network-online.target alivemap-playground.service
+Wants=network-online.target alivemap-playground.service
+
+[Service]
+Type=simple
+User=@USER@
+ExecStart=@CLOUDFLARED@ tunnel --config /etc/alivemap/tunnel.yml --no-autoupdate run --token-file /etc/alivemap/tunnel.token
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

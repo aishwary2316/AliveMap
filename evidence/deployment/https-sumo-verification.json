@@ -1,0 +1,58 @@
+{
+  "recorded_at": "2026-10-29T06:34:32.674373+00:00",
+  "map_id": "delhi_urban",
+  "backend": "physical MEC over SSH HTTP forwarding",
+  "run_id": "e76fd5d9-03b3-497a-ac8b-a9811a098607",
+  "service": {
+    "status": "ok",
+    "service": "alivemap-playground-mec",
+    "schema_version": 1,
+    "delivery_revision": 2,
+    "experiments": 0,
+    "h3_version": "4.5.0",
+    "state_storage": "sqlite",
+    "authentication": "bearer",
+    "coverage_model": "synthetic nearest tower within circular radius"
+  },
+  "rf_ue_upf_verified": false,
+  "first_report": {
+    "vehicle": "probe",
+    "sim_time": 7.5,
+    "source_type": "simulated_perception",
+    "h3_counts": {
+      "8": 1,
+      "10": 1
+    }
+  },
+  "sim_time": 537.0,
+  "reroute_counts": {
+    "cautious": 1,
+    "standard": 0,
+    "unaffected": 0,
+    "probe": 0
+  },
+  "arrival_times": {
+    "probe": 22.0,
+    "unaffected": 227.0,
+    "standard": 442.0,
+    "cautious": 537.0
+  },
+  "driving_phase_poll_interval_sim_s": 10,
+  "checks": {
+    "no incident published before perception": true,
+    "vehicle uploaded real MEC receipt": true,
+    "MEC computed affected H3 r8 and r10": true,
+    "connected receiver informed": true,
+    "offline vehicle received no fact": true,
+    "all vehicles arrived without collision or teleport": true,
+    "receiver computed and drove a detour": true,
+    "offline vehicle retained route and traversed anomaly roads": true,
+    "selected clearance leaves other incident active": true,
+    "original API acknowledged own clear": true,
+    "experiment removed after scoped cleanup": true,
+    "experiment count restored after own cleanup": true,
+    "out-of-coverage perception buffered on vehicle": true,
+    "buffered report accepted after coverage restored": true,
+    "both physical test experiments cleaned": true
+  }
+}

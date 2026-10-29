@@ -5,6 +5,12 @@ FastAPI/H3 service on a physical MEC server.
 
 ## See and control it
 
+For the permanent physical MEC connection, double-click **Open AliveMap MEC.cmd**.
+It uses the authenticated **https://alivemap.aishtrex.com** endpoint with no laptop
+SSH forward. A separate AliveMap Cloudflare tunnel and systemd services run on
+MEC, with persistent incident state. The pre-existing Cloudflare applications are
+preserved. See the [permanent deployment guide](docs/permanent-deployment.md).
+
 For custom experiments, double-click **Open AliveMap Playground.cmd**. Place
 vehicles on real directed roads, choose destinations/roles/profiles, draw multiple
 anomalies, and place simulated 5G towers. Vehicles detect and report anomalies;

@@ -1,0 +1,25 @@
+{
+  "recorded_at": "2026-10-29T06:50:12.249018+00:00",
+  "endpoint": "https://alivemap.aishtrex.com",
+  "https_certificate_verified": true,
+  "post_recovery_authenticated_status": 200,
+  "invalid_credential_status": 401,
+  "state_storage": "sqlite",
+  "authentication": "application bearer key",
+  "dedicated_tunnel_name": "alivemap-mec",
+  "origin_loopback_port": 8768,
+  "ssh_port_forward_required": false,
+  "existing_cloudflare_process_and_config_preserved": true,
+  "new_services_enabled_for_boot": true,
+  "reboot_performed": false,
+  "recovery_checks_passed": 14,
+  "https_sumo_checks_passed": 15,
+  "full_suite": {
+    "tests": 73,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "additional_targeted_checks": "Payload UTF-16 regression, retries and editor checks passed separately",
+  "rf_ue_upf_verified": false
+}
