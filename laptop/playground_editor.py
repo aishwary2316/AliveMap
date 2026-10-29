@@ -9,6 +9,7 @@ from shapely.geometry import Point, Polygon, box, mapping
 from routing_core.maps import PackageMapProvider, read_json
 from routing_core.playground import empty_scene, example_scene, road_placement, validate_scene
 from routing_core.agents import PROFILES
+from . import ui_theme as theme
 
 
 def drawn_geometry(provider, tool, points, radius=50):
@@ -32,15 +33,18 @@ class PlaygroundEditor:
         self.embedded = parent is not None
         self.window = parent if self.embedded else tk.Toplevel(app.root)
         self.epoch = None
+        self.action_buttons=[]
         self.origin, self.destination, self.geometry, self.tower_point = None, None, None, None
         if not self.embedded:
             self.window.title('AliveMap · Playground tools')
             self.window.geometry('400x760')
             self.window.protocol('WM_DELETE_WINDOW', self.window.withdraw)
-        top = ttk.Frame(self.window, padding=6); top.pack(fill='x')
+        top = ttk.Frame(self.window, padding=(6,4)); top.pack(fill='x')
         self.body = top
         self.note = tk.StringVar(value="Load an example or create a scene")
-        ttk.Label(self.body, textvariable=self.note, wraplength=260).pack(fill="x")
+        from .desktop_ui import ElidedLabel, Hint
+        note=ElidedLabel(self.body,self.note,style='Muted.TLabel')
+        note.pack(fill='x',pady=(0,3));Hint(note,lambda:self.note.get())
         self.buttons([('Empty playground',lambda: self.open_scene(False)),('Load example',lambda: self.open_scene(True)),
             ('Load scene…',self.load),('Save scene…',self.save)])
         self.tabs = ttk.Notebook(self.window)
@@ -57,62 +61,73 @@ class PlaygroundEditor:
         from .desktop_ui import Hint
         Hint(self.vehicle_box,'Select an existing vehicle, or use the fleet Plus to create a new ID.')
         self.role = self.field("Role", "both", ["both", "reporter", "receiver", "offline"])
-        self.profile = self.field("Routing profile", "time_sensitive", list(PROFILES))
+        self.profile = self.field("Policy", "time_sensitive", list(PROFILES))
         self.buttons([("Pick origin", lambda: self.pick_road("origin")), ("Pick destination", lambda: self.pick_road("destination"))])
-        self.origin_edge = self.field("Origin road", "", [])
-        self.destination_edge = self.field("Destination road", "", [])
+        self.origin_edge = self.field("From road", "", [])
+        self.destination_edge = self.field("To road", "", [])
         self.position = self.field("Position (m)", "0")
         self.buttons([("Add / update", self.put_vehicle), ("Remove", lambda: self.edit("remove_vehicle", {"id": self.vehicle.get()})), ("Track", lambda: app.track(self.vehicle.get()))])
 
         self.anomaly_page = self.page("Incidents")
         self.heading("INCIDENT")
         self.incident = self.field("Incident ID", "anomaly-1")
-        self.incident_box = ttk.Combobox(self.body, state="readonly")
-        self.incident_box.pack(fill="x"); self.incident_box.bind("<<ComboboxSelected>>", self.select_anomaly)
+        self.incident_box=self.selector(self.incident,self.select_anomaly)
         self.kind = self.field("Type", "landslide", ["congestion", "flood", "landslide"])
-        self.radius = self.field("Circle radius (m)", "50")
-        self.depth = self.field("Flood depth (m)", "0.25")
-        self.ratio = self.field("Traffic speed ratio", "0.08")
-        self.ttl = self.field("Lifetime (real s)", "1800")
-        self.sensor = self.field("Sensor range (m)", "20")
+        self.radius = self.field("Radius (m)", "50")
+        self.depth = self.field("Depth (m)", "0.25")
+        self.ratio = self.field("Speed ratio", "0.08")
+        self.ttl = self.field("TTL (real s)", "1800")
+        self.sensor = self.field("Sensor (m)", "20")
         self.buttons([(tool.title(), lambda t=tool: self.draw(t)) for tool in ("circle", "rectangle", "polygon")])
         self.buttons([("Finish shape", app.canvas.finish_edit), ("Cancel drawing", app.canvas.cancel_edit)])
         self.buttons([("Add / update anomaly", self.put_anomaly), ("Remove", lambda: self.edit("remove_anomaly", {"id": self.incident.get()}))])
         self.buttons([("Publish operator incident", lambda: self.edit("publish", {"id": self.incident.get()})), ("Clear selected", lambda: self.edit("clear", {"id": self.incident.get()}))])
-        ttk.Label(self.body, text="Add leaves the anomaly hidden from receivers. A nearby reporting vehicle discovers it. Publish bypasses perception and is explicitly labelled operator injection.", wraplength=260).pack(fill="x")
+        note=ttk.Label(self.body,text='Discover via vehicle, or publish manually.',style='Muted.TLabel',wraplength=245)
+        note.pack(fill='x',pady=(3,0))
+        Hint(note,'Save creates ground truth. A reporting vehicle must discover it. Publish is explicit operator injection.')
         self.tower_page = self.page("Towers")
         self.heading("SIMULATED 5G")
         self.tower = self.field("Tower ID", "Sim-gNB-1")
-        self.tower_box = ttk.Combobox(self.body, state="readonly")
-        self.tower_box.pack(fill="x"); self.tower_box.bind("<<ComboboxSelected>>", self.select_tower)
+        self.tower_box=self.selector(self.tower,self.select_tower)
         self.coverage = self.field("Coverage (m)", "1000")
         self.buttons([("Pick tower position", self.pick_tower), ("Add / update", self.put_tower), ("Remove", lambda: self.edit("remove_tower", {"id": self.tower.get()}))])
         self.cells, self.towers = tk.BooleanVar(value=True), tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.body, text="Show H3 r8/r10 grid + MEC affected cells", variable=self.cells, command=self.overlays).pack(anchor="w")
-        ttk.Checkbutton(self.body, text="Show towers, coverage + associations", variable=self.towers, command=self.overlays).pack(anchor="w")
+        ttk.Checkbutton(self.body, text="H3 grid and affected cells", variable=self.cells, command=self.overlays).pack(anchor="w")
+        ttk.Checkbutton(self.body, text="Towers and coverage", variable=self.towers, command=self.overlays).pack(anchor="w")
         self.radio_page = self.page("Radio")
         self.heading("PERCEPTION → MEC → DELIVERY")
         self.network_text = tk.StringVar(value="No playground loaded")
         ttk.Label(self.body, textvariable=self.network_text, wraplength=260).pack(fill="x")
-        ttk.Label(self.body, text="Circular coverage and application fan-out are simulated. HTTP reaches the chosen backend; this is not proof of RF, UE or UPF transport.", wraplength=260).pack(fill="x", pady=8)
+        ttk.Label(self.body,text='Simulated coverage · HTTP application delivery',style='Muted.TLabel',wraplength=245).pack(fill='x',pady=4)
+
+    def selector(self,variable,callback):
+        row=variable.widget.master
+        variable.widget.destroy()
+        box=ttk.Combobox(row,textvariable=variable,state='normal',width=10)
+        box.pack(side='left',fill='x',expand=True)
+        variable.widget=box
+        box.bind('<<ComboboxSelected>>',callback)
+        from .desktop_ui import Hint
+        Hint(box,'Select an existing ID, or enter a new ID to create another object')
+        return box
 
     def heading(self, text):
-        ttk.Separator(self.body).pack(fill="x", pady=8)
-        ttk.Label(self.body, text=text, font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        # The selected inspector tab already identifies the object type.
+        pass
 
     def field(self, label, value, choices=None):
         variable = tk.StringVar(value=value)
-        row = ttk.Frame(self.body); row.pack(fill="x", pady=2)
-        ttk.Label(row, text=label, width=17).pack(side="left")
+        row = ttk.Frame(self.body); row.pack(fill="x", pady=1)
+        ttk.Label(row, text=label, width=13).pack(side="left")
         widget = ttk.Entry(row, textvariable=variable, width=10) if choices is None else ttk.Combobox(row, textvariable=variable, values=choices, state="readonly", width=10)
         widget.pack(side="left", fill="x", expand=True)
         from .desktop_ui import Hint
         Hint(widget, {'Role':'Reporter: senses/uploads. Receiver: listens. Both: both. Offline: neither.',
-            'Routing profile':'Each vehicle plans independently using this travel-time, clearance and risk policy.',
-            'Origin road':'Directed OSM road. A pin selects the location; choose the correct direction here.',
-            'Destination road':'Directed destination road. Drag the B pin to change it, then Save.',
-            'Lifetime (real s)':'Expiry in real seconds. Speeding the simulation does not speed MEC expiry.',
-            'Sensor range (m)':'How close a reporter must get to discover this synthetic anomaly.',
+            'Policy':'Each vehicle plans independently using this travel-time, clearance and risk policy.',
+            'From road':'Directed OSM road. A pin selects the location; choose the correct direction here.',
+            'To road':'Directed destination road. Drag the B pin to change it, then Save.',
+            'TTL (real s)':'Expiry in real seconds. Speeding the simulation does not speed MEC expiry.',
+            'Sensor (m)':'How close a reporter must get to discover this synthetic anomaly.',
             'Coverage (m)':'Synthetic circular tower coverage; this is not measured radio coverage.'}.get(label,label))
         variable.widget = widget
         return variable
@@ -120,11 +135,11 @@ class PlaygroundEditor:
     def page(self, title):
         page = ttk.Frame(self.tabs)
         self.tabs.add(page, text=title)
-        canvas = tk.Canvas(page, highlightthickness=0, background='#edf2f7', width=270)
+        canvas = tk.Canvas(page, highlightthickness=0, background=theme.PANEL, width=250)
         bar = ttk.Scrollbar(page, orient='vertical', command=canvas.yview)
         bar.pack(side='right', fill='y'); canvas.pack(fill='both', expand=True)
         canvas.configure(yscrollcommand=bar.set)
-        self.body = ttk.Frame(canvas, padding=6)
+        self.body = ttk.Frame(canvas, padding=(7,5))
         item = canvas.create_window(0,0,window=self.body,anchor='nw')
         self.body.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
         canvas.bind('<Configure>', lambda e: canvas.itemconfigure(item,width=e.width))
@@ -136,14 +151,25 @@ class PlaygroundEditor:
 
     def buttons(self, pairs):
         from .desktop_ui import Hint
-        labels = {'Empty playground':'□ New', 'Load example':'✦ Example', 'Load scene…':'↥ Open', 'Save scene…':'↧ Save',
-            'Pick origin':'A Origin', 'Pick destination':'B Destination', 'Add / update':'✓ Save', 'Remove':'−', 'Track':'⌖',
-            'Add / update anomaly':'✓ Save area', 'Publish operator incident':'↑ Publish', 'Clear selected':'○ Clear',
-            'Pick tower position':'⌖ Place', 'Finish shape':'✓ Finish', 'Cancel drawing':'× Cancel'}
-        row = ttk.Frame(self.body); row.pack(fill='x',pady=3)
-        for label, action in pairs:
-            button=ttk.Button(row,text=labels.get(label,label),command=action,width=0)
-            button.pack(side='left',padx=2,fill='x',expand=True)
+        from .ui_icons import icon_image
+        actions={'Empty playground':('new','New'), 'Load example':('example','Example'),
+            'Load scene…':('folder',''), 'Save scene…':('save',''),
+            'Pick origin':('pin','Origin'), 'Pick destination':('pin','Destination'),
+            'Add / update':('check','Save'), 'Remove':('trash',''), 'Track':('focus',''),
+            'Add / update anomaly':('check','Save area'), 'Publish operator incident':('send','Publish'),
+            'Clear selected':('clear','Clear'), 'Pick tower position':('pin','Place'),
+            'Finish shape':('check','Finish'), 'Cancel drawing':('close','Cancel'),
+            'Circle':('circle','Circle'),'Rectangle':('rectangle','Rect'),'Polygon':('polygon','Polygon')}
+        row=ttk.Frame(self.body);row.pack(fill='x',pady=3)
+        for label,action in pairs:
+            name,text=actions[label]
+            color='#75beff' if label=='Pick origin' else '#c586c0' if label=='Pick destination' else theme.FG
+            image=icon_image(row,name,color)
+            button=ttk.Button(row,image=image,text=(' '+text) if text else '',compound='left',command=action,
+                style='Primary.TButton' if label.startswith('Add / update') else 'TButton',width=0)
+            button._icon_ref=image
+            self.action_buttons.append(button)
+            button.pack(side='left',padx=(0,3))
             Hint(button,label)
 
     def guard(self, action):

@@ -6,6 +6,7 @@ from shapely.geometry import box
 
 from .map_canvas import COLORS, LABELS, color_for, label_for
 from .route_drawing import retired_runs
+from . import ui_theme as theme
 
 
 def fit_transform(bounds, width, height, margin=14):
@@ -17,7 +18,7 @@ def fit_transform(bounds, width, height, margin=14):
 
 class RouteMiniMap(tk.Canvas):
     def __init__(self, parent):
-        super().__init__(parent, background="#f8fafc", highlightbackground="#64748b", highlightthickness=1)
+        super().__init__(parent, background=theme.BG, highlightbackground=theme.BORDER, highlightthickness=1)
         self.provider, self.frame, self.bounds, self.cache_key = None, None, None, None
         self.expanded = False
         self.create_text(170, 80, width=300, text="Start a demo to see available roads, current routes and dashed old routes.", fill="#64748b")
@@ -74,7 +75,7 @@ class RouteMiniMap(tk.Canvas):
             for position in self.provider.tree.query(box(*self.bounds)):
                 eid = self.provider.edge_ids[int(position)]
                 if "passenger" in self.provider.edges[eid]["allowed"]:
-                    self.create_line(*self.path([eid], project), fill="#cbd1d8", width=1, tags="roads")
+                    self.create_line(*self.path([eid], project), fill="#41464d", width=1, tags="roads")
             self.cache_key = cache_key
         self.delete("overlay")
         frame = self.frame
@@ -104,12 +105,15 @@ class RouteMiniMap(tk.Canvas):
             geometry = self.provider.geometry_to_xy(fact["geometry"])
             x, y = project(geometry.centroid.x, geometry.centroid.y)
             self.create_rectangle(x-4, y-4, x+4, y+4, fill="#ef4444", outline="white", tags="overlay")
-        self.create_rectangle(0, height-54, width, height, fill="#f8fafc", outline="", tags="overlay")
-        self.create_text(8, height-43, anchor="w", text="ROUTE OVERVIEW · double-click to resize", font=("Segoe UI", 9, "bold"), tags="overlay")
-        self.create_text(8, height-26, anchor="w", text="Grey roads · solid current · dashed old", font=("Segoe UI", 8), tags="overlay")
-        text = "  ".join(f"{label_for(name)}: {count}" for name, count in frame["reroute_counts"].items())
-        self.create_text(8, height-11, anchor="w", text="Reroutes · "+text, font=("Segoe UI", 8), tags="overlay")
+        self.create_rectangle(0, height-54, width, height, fill=theme.BG, outline="", tags="overlay")
+        self.create_text(8, height-43, anchor="w", text="ROUTES · double-click to expand", font=("Segoe UI", 8, "bold"), fill=theme.FG, tags="overlay")
+        self.create_text(8, height-26, anchor="w", text="Solid current · dashed previous", font=("Segoe UI", 8), fill=theme.MUTED, tags="overlay")
+        selected=getattr(self.master,'selected','')
+        label=label_for(selected)
+        label=label if len(label)<=15 else label[:14]+'…'
+        text=f"{label}: {frame['reroute_counts'].get(selected,0)}  /  total {sum(frame['reroute_counts'].values())}"
+        self.create_text(8, height-11, anchor="w", text="Reroutes · "+text, font=("Segoe UI", 8), fill=theme.FG, tags="overlay")
         # Ask Tk to repaint the entire native child surface, including labels.
         # Partial dirty rectangles can leave stale pixels on scaled Windows
         # displays even though the underlying canvas items already changed.
-        self.configure(background='#f8fafc')
+        self.configure(background=theme.BG)

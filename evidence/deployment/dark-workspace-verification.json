@@ -1,0 +1,42 @@
+{
+  "recorded_at": "2026-10-29T11:54:10.983868+00:00",
+  "scope": "dark desktop UI refinement",
+  "targeted_tests": {
+    "tests": 4,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "layout_viewport": [
+    980,
+    650
+  ],
+  "checks": [
+    "compact image buttons without default text minimum widths",
+    "aligned labels and fields",
+    "all inspector toolbars fit without truncation",
+    "local line-icon rendering",
+    "dark controls and overview",
+    "semantic log highlighting",
+    "category and text filters",
+    "search match highlighting",
+    "manual scrolling disables Follow",
+    "bounded 1500-event history",
+    "incremental trimming after limit",
+    "real SUMO editor/pins/playback/map switching"
+  ],
+  "physical_MEC_UI_smoke": {
+    "endpoint": "https://alivemap.aishtrex.com",
+    "healthy": true,
+    "sim_time": 7.5,
+    "reroute_counts": {
+      "cautious": 1,
+      "standard": 0,
+      "unaffected": 0,
+      "probe": 0
+    },
+    "last_error": null
+  },
+  "server_configuration_changed": false,
+  "radio_path_verified": false
+}

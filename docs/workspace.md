@@ -1,5 +1,25 @@
 # Single-window simulation workspace
 
+The current shell uses a compact dark theme inspired by VS Code: charcoal panels,
+flat tabs and controls, a narrow inspector, and a dark route overview. Icons are
+drawn from a consistent local line-icon set; buttons do not rely on Unicode
+glyphs or emoji fonts. Icon-only buttons have explicit compact widths.
+
+The Logs tab has aligned simulation timestamps and coloured event labels:
+acknowledgements in green, received updates in blue, routing decisions in purple,
+warnings/inspection pauses in yellow and errors in red. Use the category selector
+and search field to filter records; matches are highlighted. Follow controls
+automatic scrolling and turns off when you scroll manually. The trash icon only
+clears the local log view. The console retains at most 1,500 events and trims old
+rows incrementally to avoid repeated large redraws.
+
+Forms use aligned label columns, compact ID selectors and tooltip hints. Long
+context text is shortened with an ellipsis; full details remain on hover. The
+scenario column follows the inspector width when the divider is dragged. The
+small route overview shows the followed vehicle count and total reroutes so
+large fleets do not clip the summary line.
+
+
 Double-click **Open AliveMap MEC.cmd** for the saved physical HTTPS connection.
 It opens the selected map's editable example in the background, paused. Press
 the triangle below the map or Space to run. **Open AliveMap Playground.cmd**

@@ -6,10 +6,10 @@ FastAPI/H3 service on a physical MEC server.
 ## Open the simulation
 
 Double-click **Open AliveMap MEC.cmd** for your saved physical MEC connection.
-The redesigned workspace opens an editable example paused, with the inspector
+The compact dark workspace opens an editable example paused, with the inspector
 on the left, live map, playback timeline and a bottom tabbed console. Press Play
 or Space. Vehicles, incidents and towers are edited inside the same window.
-Hover icons for hints; click a vehicle in the floating legend to follow/configure
+The log console includes event colours, search, filters and follow mode. Hover icons for hints; click a vehicle in the floating legend to follow/configure
 it, or Plus to add one. Origin/destination pins can be dragged onto real roads.
 See the [workspace guide](docs/workspace.md) for all controls and current limits.
 

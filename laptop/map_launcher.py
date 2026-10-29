@@ -80,10 +80,8 @@ class MapLauncher:
         self.status.set('Interface error: '+str(error))
         self.story.set('The error was recorded. Simulation controls remain available.')
         self.worker.commands.put(('pause',None))
-        if hasattr(self,'history'):
-            self.history.configure(state='normal')
-            self.history.insert('end','UI ERROR · '+str(error)+'\n')
-            self.history.see('end');self.history.configure(state='disabled')
+        if hasattr(self,'console'):
+            self.console.append('error','Interface: '+str(error))
         traceback.print_exception(kind,error,trace)
 
     def connection_hint(self):
@@ -141,33 +139,47 @@ class MapLauncher:
         self.editor.note.set('New vehicle: place A origin and B destination pins, choose role, then Save vehicle.')
 
     def render_fleet(self, expanded=None):
-        from .desktop_ui import Hint
-        if expanded is not None:
-            self.fleet_expanded = expanded
-        names = tuple(self.frame.get('vehicle_status', {})) if self.frame else ()
-        signature = (names, self.fleet_expanded, self.canvas.selected)
-        if signature == self.fleet_signature:
-            return
-        self.fleet_signature = signature
-        for child in self.fleet_panel.winfo_children():
-            child.destroy()
-        title = ttk.Button(self.fleet_panel, text='▾ Fleet' if self.fleet_expanded else '◉', width=14 if self.fleet_expanded else 3,
-            command=lambda: self.render_fleet(not self.fleet_expanded))
-        title.pack(fill='x'); Hint(title, 'Expand / collapse vehicle legend')
-        title.bind('<Enter>', lambda e: self.render_fleet(True), add='+')
+        from .desktop_ui import Hint, icon
+        from .ui_icons import icon_image
+        from . import ui_theme as t
+        if expanded is not None:self.fleet_expanded=expanded
+        names=tuple(self.frame.get('vehicle_status',{})) if self.frame else ()
+        signature=(names,self.fleet_expanded,self.canvas.selected)
+        if signature==self.fleet_signature:return
+        self.fleet_signature=signature
+        for child in self.fleet_panel.winfo_children():child.destroy()
+        title=ttk.Button(self.fleet_panel,image=icon_image(self.fleet_panel,'car'),
+            text=' Fleet' if self.fleet_expanded else '',compound='left',style='Icon.TButton',width=0,
+            command=lambda:self.render_fleet(not self.fleet_expanded))
+        title.pack(fill='x');Hint(title,'Expand / collapse vehicle legend')
+        if not self.fleet_expanded:
+            timer=[None]
+            def cancel(_=None):
+                if timer[0]:self.root.after_cancel(timer[0]);timer[0]=None
+            def expand(_=None):
+                cancel()
+                timer[0]=self.root.after(180,lambda:self.render_fleet(True) if title.winfo_exists() and not self.closing else None)
+            title.bind('<Enter>',expand,add='+')
+            title.bind('<Leave>',cancel,add='+');title.bind('<Destroy>',cancel,add='+')
         for name in names:
-            row = ttk.Frame(self.fleet_panel); row.pack(fill='x')
-            label = '● '+label_for(name) if self.fleet_expanded else '●'
-            button = tk.Button(row, text=label, fg=color_for(name), bg='white' if name == self.canvas.selected else '#edf2f7',
-                relief='flat', borderwidth=0, font=('Segoe UI',10,'bold'), anchor='w', cursor='hand2',
-                command=lambda n=name: self.select_fleet_vehicle(n))
-            button.pack(side='left', fill='x', expand=True)
-            Hint(button, lambda n=name: n+' · '+(self.frame or {}).get('vehicle_status',{}).get(n,'')+'\nClick to follow and load vehicle settings')
+            row=ttk.Frame(self.fleet_panel);row.pack(fill='x')
+            text=label_for(name)
+            text=text if len(text)<=18 else text[:17]+'…'
+            image=icon_image(row,'car',color_for(name))
+            button=tk.Button(row,image=image,text=(' '+text) if self.fleet_expanded else '',compound='left',
+                fg=color_for(name),bg='#37373d' if name==self.canvas.selected else t.PANEL,
+                activebackground='#37373d',activeforeground=color_for(name),relief='flat',borderwidth=0,
+                padx=5,pady=4,font=('Segoe UI',9),anchor='w',cursor='hand2',
+                command=lambda n=name:self.select_fleet_vehicle(n))
+            button._icon_ref=image
+            button.pack(side='left',fill='x',expand=True)
+            Hint(button,lambda n=name:n+' · '+(self.frame or {}).get('vehicle_status',{}).get(n,'')+'\nFollow and edit this vehicle')
             if self.fleet_expanded:
-                gear = ttk.Button(row, text='⚙', width=2, command=lambda n=name: self.configure_vehicle(n))
-                gear.pack(side='right'); Hint(gear, 'Edit role, destination and routing profile')
-        add = ttk.Button(self.fleet_panel, text='+ Vehicle' if self.fleet_expanded else '+', width=3, command=self.new_vehicle)
-        add.pack(fill='x'); Hint(add, 'Add a vehicle to the playground')
+                gear=icon(row,'settings',lambda n=name:self.configure_vehicle(n),'Edit vehicle settings')
+                gear.pack_forget();gear.pack(side='right')
+        row=ttk.Frame(self.fleet_panel);row.pack(fill='x')
+        add=icon(row,'plus',self.new_vehicle,'Add a vehicle',text='Add vehicle' if self.fleet_expanded else None)
+        add.pack_configure(fill='x',expand=True)
 
     def configure_vehicle(self, name):
         self.select_fleet_vehicle(name)
@@ -180,22 +192,22 @@ class MapLauncher:
         width = max(80, canvas.winfo_width()-12)
         elapsed = self.frame.get('time',0) if self.frame else 0
         span = max(120, (int(elapsed/120)+1)*120)
-        canvas.create_line(4,12,width,12,fill='#cbd5e1',width=4)
+        canvas.create_line(4,12,width,12,fill='#3c3c3c',width=4)
         end = 4+(width-4)*elapsed/span
-        canvas.create_line(4,12,end,12,fill='#2563eb',width=4)
+        canvas.create_line(4,12,end,12,fill='#4daafc',width=4)
         if self.frame:
             for records in self.frame.get('route_history',{}).values():
                 for record in records:
                     x=4+(width-4)*record['sim_time']/span
                     canvas.create_line(x,5,x,19,fill='#f59e0b',width=2)
-        canvas.create_oval(end-4,8,end+4,16,fill='#2563eb',outline='')
-        canvas.create_text(width,24,anchor='se',text=f'{elapsed:.1f} / {span:g} s',fill='#64748b',font=('Consolas',8))
+        canvas.create_oval(end-4,8,end+4,16,fill='#4daafc',outline='')
+        canvas.create_text(width,24,anchor='se',text=f'{elapsed:.1f} / {span:g} s',fill='#858585',font=('Consolas',8))
 
     def combo(self, frame, label, variable, values):
         row = ttk.Frame(frame)
-        row.pack(fill="x", pady=3)
-        ttk.Label(row, text=label, width=10).pack(side="left")
-        box = ttk.Combobox(row, textvariable=variable, values=values, state="readonly", width=18)
+        row.pack(fill="x", pady=1)
+        ttk.Label(row, text=label, width=8).pack(side="left")
+        box = ttk.Combobox(row, textvariable=variable, values=values, state="readonly", width=16)
         box.pack(side="left", fill="x", expand=True)
         from .desktop_ui import Hint
         Hint(box, {'Map':'Select a geographic map, then load an example or run a comparison.',
@@ -207,7 +219,7 @@ class MapLauncher:
 
     def button_row(self, parent, buttons):
         row = ttk.Frame(parent)
-        row.pack(fill="x", pady=3)
+        row.pack(fill="x", pady=1)
         for label, action in buttons:
             ttk.Button(row, text=label, command=action).pack(side="left", fill="x", expand=True, padx=1)
 
@@ -314,7 +326,7 @@ class MapLauncher:
         else:
             text = f"{label_for(name)}: {status}. "+("Waiting for safe insertion; grey marker = spawn location." if status == "queued" else "Destination reached. Choose another vehicle or replay.")
             self.profile.delete("all")
-            self.profile.create_text(12, 20, anchor="w", text=label_for(name)+": "+status)
+            self.profile.create_text(12, 20, anchor="w", text=label_for(name)+": "+status, fill="#cccccc")
         self.vehicle_detail.set(text)
 
     def draw_profile(self, route):
@@ -327,15 +339,16 @@ class MapLauncher:
                     samples.append((distance+d, h))
             distance += edge["length_m"]
         if len(samples) < 2:
-            self.profile.create_text(10, 22, anchor="w", text="No valid DEM samples for the remaining route; elevation is not invented.")
+            self.profile.create_text(10, 22, anchor="w", text="No valid DEM samples for the remaining route; elevation is not invented.",fill="#858585")
             return
         low, high = min(h for d, h in samples), max(h for d, h in samples)
         width = max(200, self.profile.winfo_width()-100)
-        points = [(70+d/max(distance, 1)*width, 75-(h-low)/max(10, high-low)*45) for d, h in samples]
-        self.profile.create_text(10, 12, anchor="w", text=f"Remaining route elevation: {low:.0f}–{high:.0f} m · Copernicus 30 m DSM, approximate")
-        self.profile.create_line(*[v for point in points for v in point], fill="#447a46", width=2)
-        self.profile.create_text(70, 90, anchor="w", text="Now")
-        self.profile.create_text(width+70, 90, anchor="e", text=f"Destination · {distance/1000:.1f} km")
+        height=max(88,self.profile.winfo_height())
+        points=[(70+d/max(distance,1)*width,height-25-(h-low)/max(10,high-low)*max(20,height-47)) for d,h in samples]
+        self.profile.create_text(10, 12, anchor="w", text=f"Remaining elevation {low:.0f}–{high:.0f} m · Copernicus DSM",fill="#cccccc")
+        self.profile.create_line(*[v for point in points for v in point], fill="#89d185", width=2)
+        self.profile.create_text(70, height-9, anchor="w", text="Now",fill="#858585")
+        self.profile.create_text(width+70, height-9, anchor="e", text=f"Destination · {distance/1000:.1f} km",fill="#858585")
 
     def poll(self):
         try:
@@ -356,12 +369,7 @@ class MapLauncher:
             for update in updates:
                 kind = update["kind"]
                 if kind in ("ready", "report", "decision", "snapshot", "error", "finished", "route_review", "radio", "edit_error", "cleanup_error", "busy") and update.get("message"):
-                    self.history.configure(state="normal")
-                    self.history.insert("end", f"t={update.get('sim', 0):.1f}s · {update['message']}\n")
-                    if int(self.history.index('end-1c').split('.')[0]) > 1200:
-                        self.history.delete('1.0', '201.0')
-                    self.history.see("end")
-                    self.history.configure(state="disabled")
+                    self.console.append(kind,update['message'],update.get('sim',0))
                 if kind == "map_loaded":
                     self.frame = None
                     self.provider, self.scenario_data = update["provider"], update["scenario"]
@@ -369,9 +377,8 @@ class MapLauncher:
                     self.minimap.set_map(self.provider)
                     self.rate_sample = None
                     self.wall_started = time.monotonic()
-                    self.history.configure(state="normal")
-                    self.history.delete("1.0", "end")
-                    self.history.configure(state="disabled")
+                    self.console.clear()
+                    self.console.append('ready',f"Loaded {update['provider'].manifest['map_id']} · SUMO ready · scene paused",0)
                 elif kind == "frame":
                     self.epoch, self.frame = update["run_id"], update
                     backend = "LOCAL DEMO API" if update["mec_mode"] == "local" else "PHYSICAL MEC"
@@ -385,10 +392,11 @@ class MapLauncher:
                         self.status.set(self.status.get()+' · '+update['mec_endpoint'])
                     if update.get("last_error"):
                         self.story.set("Paused: "+update["last_error"])
-                    self.play_button.configure(text='Ⅱ' if update['playing'] else '▶')
+                    from .ui_icons import set_icon
+                    set_icon(self.play_button,'pause' if update['playing'] else 'play')
                     self.loading = False
                     self.connection_led.configure(text='● LOCAL' if update['mec_mode']=='local' else '● MEC',
-                        foreground='#059669' if update['healthy'] else '#dc2626', background='#d1fae5' if update['healthy'] else '#fee2e2')
+                        foreground='#89d185' if update['healthy'] else '#f48771', background='#1f1f1f')
                     self.render_fleet()
                     self.draw_timeline()
                     self.canvas.update_frame(update)
@@ -416,11 +424,11 @@ class MapLauncher:
                 elif kind == "error":
                     self.loading = False
                     self.status.set("Paused - "+update["message"])
-                    self.connection_led.configure(foreground='#ef4444')
+                    self.connection_led.configure(foreground='#f48771')
                 elif kind in ("loading", "finished", "route_review"):
                     if kind=='loading':
                         self.loading = True
-                        self.connection_led.configure(foreground='#d97706',background='#fef3c7')
+                        self.connection_led.configure(foreground='#cca700',background='#1f1f1f')
                     self.story.set(update["message"])
                 elif kind == "stopped" and self.closing:
                     self.canvas.close()

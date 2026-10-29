@@ -363,15 +363,20 @@ class MapCanvas(tk.Canvas):
             for ll in self.edit_points:
                 x, y = self.screen(*ll)
                 self.create_oval(x-4, y-4, x+4, y+4, fill="#7c3aed")
-        self.create_rectangle(0, height-25, width, height, fill="white", outline="")
-        self.create_text(8, height-13, text=self.source.attribution, anchor="w", font=("Segoe UI", 9), fill="#283745")
+        self.create_rectangle(0,height-19,width,height,fill='#1f1f1f',outline='')
+        self.create_text(8,height-10,text=self.source.attribution,anchor='w',font=('Segoe UI',8),fill='#a0a0a0')
         metres_per_pixel = 156543.033928*math.cos(math.radians(self.center[1]))/2**self.zoom
         distance = min((10, 20, 50, 100, 200, 500, 1000, 2000, 5000), key=lambda value: abs(value/metres_per_pixel-100))
         bar = distance/metres_per_pixel
         self.create_line(12, height-40, 12+bar, height-40, fill="white", width=6)
         self.create_line(12, height-40, 12+bar, height-40, fill="#192d42", width=2)
         self.create_text(12, height-53, anchor="w", text=f"{distance:g} m", fill="#192d42", font=("Segoe UI", 9, "bold"))
-        self.create_text(width-10, 12, anchor="ne", text=f"Zoom {self.zoom} · {'Following '+label_for(self.selected) if self.follow else 'Free map'}", font=("Segoe UI", 10, "bold"), fill="#162d46")
+        name=label_for(self.selected)
+        text=f"z{self.zoom}  /  "+(('Following '+name[:24]+('…' if len(name)>24 else '')) if self.follow else 'Free map')
+        from tkinter import font
+        extent=min(width-20,font.Font(family='Segoe UI',size=8).measure(text)+18)
+        self.create_rectangle(8,8,8+extent,30,fill='#1f1f1f',outline='#343434')
+        self.create_text(16,19,anchor='w',text=text,font=('Segoe UI',8),fill='#cccccc',width=max(1,extent-12))
         if len(self.photos) > 220:
             self.photos = {key: photo for key, photo in self.photos.items() if key in self.tiles}
 
