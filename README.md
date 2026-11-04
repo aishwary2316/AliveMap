@@ -103,6 +103,10 @@ service. See [architecture](docs/architecture.md) and [deployment](docs/permanen
 
 ## Verification
 
+On **5 November 2026**, isolated setup, default map construction, incident and
+baseline checks, repeat setup and desktop launch were verified. All 53 portable
+tests and both hosted Windows/Ubuntu jobs passed. See [setup evidence](evidence/setup-verification.json).
+
 The publication verification on **4 November 2026 passed all 88 tests in one
 full Windows run**. A source-only snapshot also passed 48 portable checks, and
 a freshly downloaded Delhi map passed the two-scout/incident-free comparison.

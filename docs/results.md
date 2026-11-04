@@ -3,6 +3,25 @@
 Results are dated observations, not a claim about current service availability.
 All road incidents below are synthetic. Public source data is real geography.
 
+## Setup verification (5 November 2026)
+
+[Machine-readable record](../evidence/setup-verification.json). A separate local
+checkout with a new Python 3.12 environment installed the runtime dependencies,
+passed `pip check`, built the included real Delhi road source and passed the
+two-scout and identical-trip baseline checks. Repeating setup reused the
+validated map; its desktop launch was observed healthy in Local mode.
+
+The new verifier also passed on all four existing geographic packages, including
+Mayangkhang's legitimate blocked outcome. The portable suite passed 53 tests.
+Hosted Windows and Ubuntu jobs both passed for the setup/snapshot source commit.
+
+The test exposed a restricted Windows temporary-directory failure and live
+Overpass timeouts/502 responses. The final script uses workspace-local temporary
+files and a checksummed, attributed 0.53 MB Delhi OSM snapshot, eliminating live
+road-service dependence for default setup. Other regions, refreshed roads and
+optional rasters still depend on their sources. Python itself was preinstalled;
+this was not a fresh operating-system or physical-MEC deployment test.
+
 ## Publication verification (4 November 2026)
 
 The complete Windows regression suite passed **88 tests in one run** (542.89 s).

@@ -1,0 +1,100 @@
+{
+  "date": "2026-11-05",
+  "scope": "Windows local setup, isolated checkout/new virtual environment, real SUMO and OSM geography",
+  "source_commit": "8bd9599b64e3c33cbd980d8857cc5b3d80ddfbf2",
+  "prerequisites": "Existing portable Python 3.12 selected with the supported -PythonExe parameter; Git installed",
+  "fresh_environment_installed": true,
+  "pip_check_passed": true,
+  "private_endpoint_configuration_copied": false,
+  "bundled_delhi": {
+    "region": "delhi_urban",
+    "build_id": "da4ce89cddb05a85970065d7d448d2c39285befba7393130026e828f46104d60",
+    "report_times_sim_seconds": [
+      7.5,
+      16.5
+    ],
+    "affected_receiver_reroutes": 1,
+    "affected_receiver_blocked": false,
+    "h3_micro_cells": 1,
+    "same_trip_baseline_passed": true,
+    "passed": true
+  },
+  "all_four_existing_map_smoke_results": [
+    {
+      "region": "delhi_urban",
+      "build_id": "987bc78b8af596782506620d268d811bb0f347b2515f6982fbffe7dc8dfe8344",
+      "report_times_sim_seconds": [
+        7.5,
+        16.5
+      ],
+      "affected_receiver_reroutes": 1,
+      "affected_receiver_blocked": false,
+      "h3_micro_cells": 1,
+      "same_trip_baseline_passed": true,
+      "passed": true
+    },
+    {
+      "region": "gujarat_coastal",
+      "build_id": "589575089e565ff73cad4a07a2dfc0083b5fcbf9d8952cd649da4b817a14fc89",
+      "report_times_sim_seconds": [
+        13.5,
+        23.5
+      ],
+      "affected_receiver_reroutes": 1,
+      "affected_receiver_blocked": false,
+      "h3_micro_cells": 2,
+      "same_trip_baseline_passed": true,
+      "passed": true
+    },
+    {
+      "region": "manipur_mantripukhri",
+      "build_id": "ecaa6526ec4a8adf1ea124c2a00879984002b7130b61e052509c09a9855bc372",
+      "report_times_sim_seconds": [
+        10.0,
+        14.0
+      ],
+      "affected_receiver_reroutes": 1,
+      "affected_receiver_blocked": false,
+      "h3_micro_cells": 1,
+      "same_trip_baseline_passed": true,
+      "passed": true
+    },
+    {
+      "region": "manipur_mayangkhang",
+      "build_id": "5e1df1d5fb64bafa176b68dbefa198c65cd09256fd581f656368adf5688fa12c",
+      "report_times_sim_seconds": [
+        44.0,
+        46.5
+      ],
+      "affected_receiver_reroutes": 0,
+      "affected_receiver_blocked": true,
+      "h3_micro_cells": 1,
+      "same_trip_baseline_passed": true,
+      "passed": true
+    }
+  ],
+  "portable_regression": {
+    "tests": 53,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "physical_mec_contacted": false,
+  "real_5g_path_verified": false,
+  "notes": [
+    "An initial restricted temporary-folder failure was repaired with workspace-local temporary files and retryable pip bootstrap.",
+    "A subsequent live-Overpass build failed with timeouts/502. The final default uses the checked-in attributed source snapshot and passed without a road-service request.",
+    "This setup check does not claim a fresh operating-system installation or automatic Python installation.",
+    "The default roads-only package has no DEM/satellite assets; additional regions, terrain acquisition and explicit road refresh still require their source services."
+  ],
+  "final_setup_completed": true,
+  "repeat_setup_reused_validated_map": true,
+  "desktop_launch_healthy": true,
+  "repeat_run_smoke_check_skipped": true,
+  "default_snapshot_bytes": 528070,
+  "hosted_ci": {
+    "run_url": "https://github.com/aishwary2316/AliveMap/actions/runs/41898533184",
+    "windows": "success",
+    "ubuntu": "success"
+  }
+}
