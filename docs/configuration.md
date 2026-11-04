@@ -2,6 +2,8 @@
 
 Run commands from the repository root. The default supported desktop command is
 `python -m laptop.map_launcher --playground`; use `--help` for CLI options.
+For a fresh checkout, [Setup.ps1](../Setup.ps1) installs and verifies the local
+environment in one command; see [setup and replication](setup.md).
 
 ## Startup modes
 

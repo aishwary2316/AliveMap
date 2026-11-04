@@ -85,6 +85,8 @@ Neither public map tiles nor a downloaded image is a road-routing engine.
 | `scripts/verify_mec_story.py`, `verify_physical_playground.py` | Explicit physical-API scenario acceptance tools |
 | `scripts/benchmark_map_ui.py`, `benchmark_playback.py` | Rendering and telemetry throughput comparisons |
 | `tests/` | Maintained contract, geometry, routing, persistence, transport and native UI checks |
+| `Setup.ps1`, `scripts/setup_local.py`, `scripts/setup_maps.py` | Local environment bootstrap, dependency checks and validated map reuse/build |
+| `scripts/verify_local.py` | Real SUMO two-scout and incident-free baseline acceptance check without remote services |
 
 Compatibility modules remain deliberately separate: `laptop/controller.py`,
 `live_session.py`, `network.py` and `selftest.py` cover the deterministic grid;

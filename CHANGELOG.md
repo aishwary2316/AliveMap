@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Setup and visual documentation
+
+- Added one-command Windows setup, a cross-platform bootstrap, validated map
+  reuse and a real SUMO/local API smoke test for incident and baseline cases.
+- Added native application screenshots with visible map attribution and a
+  step-by-step installation/replication guide.
+- Setup preserves existing environments, reports incomplete installations and
+  keeps bootstrap temporary files within the ignored local workspace.
+
 ### Documentation reference
 
 - Added software/provider inventory, routing equations and profiles, configuration

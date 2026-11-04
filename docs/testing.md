@@ -3,6 +3,12 @@
 Use Python 3.12 and install `requirements-dev.txt` from the repository root.
 Runtime installations use `requirements-laptop.txt`; pytest is not a runtime dependency.
 
+The [setup script](setup.md) also runs a real-SUMO acceptance check without
+installing pytest. Repeat it with `.venv` Python and
+`-m scripts.verify_local --maps delhi_urban`. This checks two independent scouts,
+MEC corroboration/H3, a valid changed route or legitimate stop, and an
+identical-trip no-incident baseline. It does not contact a remote MEC.
+
 ```powershell
 # Portable contracts, routing, persistence, transport and deployment checks
 .\.venv\Scripts\python.exe -m pytest -m "not gui and not maps" -q

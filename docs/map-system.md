@@ -1,6 +1,7 @@
 # Geographic map packages
 
 Run from the repository root with Python 3.12 and `requirements-laptop.txt`.
+For an automated first build, use the [setup script](setup.md).
 The maintained UI is `python -m laptop.map_launcher --playground`; local mode
 requires no SSH connection. See [workspace controls](workspace.md).
 

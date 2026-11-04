@@ -21,7 +21,9 @@ foreach ($taskCandidate in $taskCandidates) {
     if (-not (Get-Command $taskCandidate -ErrorAction SilentlyContinue)) { continue }
     $taskProbePrefix = @()
     if ($taskCandidate -eq 'py') { $taskProbePrefix = @('-3.12') }
-    & $taskCandidate @taskProbePrefix -c 'import sys; sys.exit(0 if sys.version_info[:2] == (3,12) else 1)' 2>$null
+    try {
+        & $taskCandidate @taskProbePrefix -c 'import sys; sys.exit(0 if sys.version_info[:2] == (3,12) else 1)' 2>$null
+    } catch { continue }
     if ($LASTEXITCODE -eq 0) { $taskPython = $taskCandidate; $taskPrefix = $taskProbePrefix; break }
 }
 if (-not $taskPython) {

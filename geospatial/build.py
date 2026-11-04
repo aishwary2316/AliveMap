@@ -27,6 +27,29 @@ CLASSES = ("passenger", "truck", "bus", "emergency")
 RESOLUTIONS = (8, 10)
 
 
+def publish_stage(stage, destination, packages):
+    """Preserve an existing revision before publishing a repaired local package."""
+    stage, destination, packages = map(Path, (stage, destination, packages))
+    root = packages.resolve()
+    if any(not item.resolve().is_relative_to(root) or item.resolve() == root
+           for item in (stage, destination)) or stage.resolve() == destination.resolve():
+        raise ValueError('Unsafe map publication path')
+    retained = None
+    if destination.exists():
+        retained = packages / '.staging' / ('retained-' + uuid4().hex)
+        retained.parent.mkdir(parents=True, exist_ok=True)
+        if not retained.resolve().is_relative_to(root):
+            raise ValueError('Unsafe retained package path')
+        destination.rename(retained)
+    try:
+        stage.rename(destination)
+    except OSError:
+        if retained is not None:
+            retained.rename(destination)
+        raise
+    return retained
+
+
 def write(path, value):
     path.write_text(json.dumps(value, indent=2, sort_keys=True, allow_nan=False)+"\n", encoding="utf-8", newline="\n")
 
@@ -237,9 +260,9 @@ def build(package_id, skip_rasters=False):
     if not stage.resolve().is_relative_to(packages.resolve()) or not destination.resolve().is_relative_to(packages.resolve()):
         raise ValueError("Unsafe map publication path")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        raise FileExistsError(f"Build already exists; retained new staging files at {stage}")
-    stage.rename(destination)
+    retained = publish_stage(stage, destination, packages)
+    if retained:
+        print(f'[{package_id}] Previous revision files preserved at {retained}', flush=True)
     write(destination.parent / "active.json", {"revision": build_id[:12], "build_id": build_id})
     print(f"[{package_id}] published {destination}; status={manifest['status']}; scenario={scenario['scenario_id']}", flush=True)
     return destination

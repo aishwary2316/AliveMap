@@ -1,7 +1,6 @@
 """Reuse valid packages; build missing real geography without deleting user data."""
 import argparse
 import json
-from pathlib import Path
 
 from geospatial.build import ROOT, build
 from routing_core.maps import validate_package

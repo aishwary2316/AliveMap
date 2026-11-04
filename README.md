@@ -4,6 +4,13 @@ An interactive autonomous-routing research playground built with SUMO, TraCI,
 OpenStreetMap and H3. Vehicles observe synthetic road incidents, report them to
 an edge service, receive relevant semantic updates, and independently plan routes.
 
+[Quick start](#run-locally) · [Setup guide](docs/setup.md) · [Workspace](docs/workspace.md) · [Results](docs/results.md)
+
+![AliveMap desktop showing a real SUMO vehicle reroute, route overview and corroborated incident logs](docs/images/workspace.jpg)
+
+*An actual local Delhi run, paused after two independent scout reports and a
+receiver reroute. Map © OpenStreetMap contributors. [Image details](docs/images/README.md).*
+
 **Status:** working research proof of concept, tested on Windows 11 / Python 3.12.
 Local simulation needs no MEC account, SSH tunnel or Cloudflare subscription.
 Physical-MEC integration is optional. Tower coverage is simulated; actual 5G
@@ -11,22 +18,37 @@ radio and user-plane transport have not been verified.
 
 ## Run locally
 
-Clone the repository and run from its root in PowerShell:
+On Windows 11, install **Git** and **Python 3.12 with Tcl/Tk** first. Then paste
+this into PowerShell:
 
 ```powershell
 git clone https://github.com/aishwary2316/AliveMap.git
 cd AliveMap
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-laptop.txt
-.\.venv\Scripts\python.exe -m geospatial.build delhi_urban --skip-rasters
-.\.venv\Scripts\python.exe -m laptop.map_launcher --playground
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Setup.ps1
 ```
 
-The roads-only build is the quickest first run. It downloads a real OSM extract
-and converts it into a directed SUMO network; it does not invent roads. For
-approximate elevation data, omit `--skip-rasters` (also attempts historical imagery).
-Downloads need Internet access and can take time. Large generated assets are
-excluded from Git: a fresh clone must build them first.
+**Already cloned? Run just the last command.** It creates `.venv`, installs pinned
+dependencies, builds a real Delhi road package, checks two independent reports
+and routing in actual SUMO, checks the same trips without an incident, then opens
+the workspace. No admin privileges, credentials or physical MEC are needed.
+The execution-policy option applies only to this PowerShell process.
+
+First setup downloads packages and OSM data; allow several minutes and Internet
+access. Rerunning reuses the environment and validated map packages. It never
+deletes an existing environment or overwrites remote services.
+
+| Setup | Command after cloning |
+| --- | --- |
+| Delhi, verify and launch | `powershell -NoProfile -ExecutionPolicy Bypass -File .\Setup.ps1` |
+| All four map regions | `powershell -NoProfile -ExecutionPolicy Bypass -File .\Setup.ps1 -AllMaps` |
+| Include elevation/imagery acquisition | Add `-Terrain` |
+| Install without opening a window | Add `-NoLaunch` |
+| Development tools | Add `-Dev` |
+
+The default roads-only package is explicitly marked degraded for raster data;
+the real road network and incident routing work. `-Terrain` attempts optional
+DEM/historical imagery downloads. Source outages are reported. Large generated
+assets stay outside Git. See [complete setup, Linux and recovery steps](docs/setup.md).
 
 Select **Local**, **Delhi Urban**, and **With incident**, then Run/Play. Two scouts
 independently encounter the anomaly. Their reports update the local MEC
@@ -46,6 +68,14 @@ See the [workspace guide](docs/workspace.md) for editing and vehicle tracking.
 - H3 resolution 8/10 processing, report corroboration and scoped delivery.
 - Streets/terrain display, tracking, route history, clocks and speed controls.
 - Local backend and optional authenticated HTTPS MEC with persistent state.
+
+| Inspect report delivery | Build your own scenario |
+| --- | --- |
+| <img src="docs/images/report-delivery.jpg" alt="Radio inspector showing independent reports and vehicle knowledge" width="460"> | <img src="docs/images/incident-tools.jpg" alt="Incident inspector with shape drawing, depth, speed ratio and publish controls" width="460"> |
+| Follow report acknowledgements and each vehicle's received facts. | Draw an area, set its properties, save ground truth or publish explicitly. |
+
+Both views are from the same actual local run. Towers and incidents are
+synthetic; the roads and street background are OSM-derived.
 
 ## How it works
 
@@ -88,6 +118,7 @@ are built. See [testing](docs/testing.md).
 
 | Guide | Contents |
 | --- | --- |
+| [Setup](docs/setup.md) | One-command installation, repeat runs and replication |
 | [Workspace](docs/workspace.md) | Controls and scenario editing |
 | [Maps](docs/map-system.md) | Build regions, provenance, terrain limits |
 | [Architecture](docs/architecture.md) | Processing, messages, module boundaries |

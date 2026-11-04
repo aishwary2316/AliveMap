@@ -12,7 +12,11 @@ REGIONS = tuple(json.loads((ROOT / 'geospatial/definitions.json').read_text(enco
 
 
 def run(arguments):
-    subprocess.run([str(arg) for arg in arguments], cwd=ROOT, check=True)
+    temporary = ROOT / '.local/setup-temp'
+    temporary.mkdir(parents=True, exist_ok=True)
+    environment = os.environ.copy()
+    environment.update(TEMP=str(temporary), TMP=str(temporary), TMPDIR=str(temporary))
+    subprocess.run([str(arg) for arg in arguments], cwd=ROOT, env=environment, check=True)
 
 
 def main():
@@ -33,7 +37,8 @@ def main():
         run([python, '-c', 'import sys; sys.exit(0 if sys.version_info[:2] == (3,12) else "Existing .venv must use Python 3.12")'])
     else:
         print('[1/4] Creating .venv with Python 3.12', flush=True)
-        venv.EnvBuilder(with_pip=True).create(environment)
+        venv.EnvBuilder(with_pip=False).create(environment)
+    run([python, '-m', 'ensurepip', '--upgrade'])
     print('[2/4] Installing pinned dependencies (existing packages are reused)', flush=True)
     requirements = 'requirements-dev.txt' if args.dev else 'requirements-laptop.txt'
     run([python, '-m', 'pip', 'install', '--disable-pip-version-check', '-r', requirements])
