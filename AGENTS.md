@@ -14,9 +14,9 @@ Before adapting or deploying code:
    environment files, raw inventories or private network topology.
 6. Separate user-reported context from directly verified observations.
 
-experiments/standalone-poc preserves an earlier locally tested experiment created
-before environment discovery. It is not an accepted deployment design and its
-separate API is not the existing MEC application.
+experiments/standalone-poc indexes an earlier locally tested experiment preserved
+in Git history, created before environment discovery. Its retired separate API
+is not the existing MEC application or an accepted deployment design.
 
 Use explicit repository working directories. Report local simulation, physical-MEC
 integration and 5G-path verification separately. No fabricated deployment evidence

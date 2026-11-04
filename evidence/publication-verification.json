@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-04",
+  "scope": "Local publication preparation; Windows / Python 3.12 / SUMO 1.28.0",
+  "phases": {
+    "full_regression": {
+      "tests": 88,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 542.865
+    },
+    "source_only_portable": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 10.661
+    },
+    "final_configuration": {
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 2.191
+    },
+    "fresh_delhi_story": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "wall_seconds": 27.221
+    }
+  },
+  "fresh_source_test_environment": "Source-only snapshot without private configuration or prebuilt geographic assets; reused installed Python environment, not a clean dependency installation",
+  "fresh_delhi": {
+    "build_id": "a2569bd6f0b41d6683c12471c0f0a5ed0f6557a62f3aaaba2663f8e62ccad628",
+    "external_edges": 14082,
+    "status": "degraded",
+    "roads_sha256": "7a16e2372f0d153800032732d9d01a5372386e488f62e75f858e095e773c170c",
+    "report_times_sim_seconds": [
+      8.0,
+      10.5
+    ],
+    "affected_receiver_reroutes": 1,
+    "paired_no_incident_baseline_passed": true
+  },
+  "repository_checks": {
+    "git_fsck_no_corruption": true,
+    "reachable_history_blobs_pattern_scanned": 288,
+    "pattern_matches": 0,
+    "patterns": [
+      "private-key headers",
+      "long eyJ-prefixed tokens",
+      "selected private network addresses"
+    ],
+    "scan_limit": "Pattern checks are not a guarantee of secret absence; no history rewrite performed.",
+    "pip_check": "No broken requirements found",
+    "relative_markdown_links": "checked",
+    "personal_reports_and_credentials": "excluded by ignore rules"
+  },
+  "physical_service_contacted": false,
+  "real_5g_path_verified": false,
+  "license_status": "Undecided at maintainer request",
+  "notes": [
+    "Full suite passed in one run; focused configuration checks also passed after packager changes.",
+    "Two upstream dependency deprecation warnings remain; no environment upgrade was made.",
+    "Hosted CI execution is separate from these local results."
+  ]
+}

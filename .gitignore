@@ -21,3 +21,14 @@ map_packages/.staging/
 map_packages/*/*/source/
 map_packages/*/*/processed/
 map_packages/*/*/sumo/
+
+# Local publication drafts, personal reports and desktop shortcuts.
+/outputs/
+/Screenshots/
+/EC3152-Project-Report*/
+*.lnk
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/

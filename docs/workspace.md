@@ -158,7 +158,7 @@ are written once a second during playback instead of on every tick.
 
 The reproducible physical HTTPS benchmark is:
 
-    .\.venv\Scripts\python.exe -m scripts.benchmark_playback --url https://alivemap.aishtrex.com
+    .\.venv\Scripts\python.exe -m scripts.benchmark_playback --url https://edge.example.org
 
 The recorded Delhi sample advanced 40 simulated seconds in 27.152 s with per-step
 telemetry versus 2.349 s with paced telemetry: 11.59x relative throughput, with

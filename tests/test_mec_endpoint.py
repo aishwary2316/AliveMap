@@ -11,9 +11,9 @@ def test_https_private_configuration_and_override_do_not_leak_to_loopback(tmp_pa
     for name in ('ALIVEMAP_MEC_URL','CF_ACCESS_CLIENT_ID','CF_ACCESS_CLIENT_SECRET'):
         monkeypatch.delenv(name,raising=False)
     path=tmp_path/'endpoint.json'
-    path.write_text(json.dumps({'url':'https://alivemap.aishtrex.com','access_client_id':'test-id','access_client_secret':'test-secret'}))
+    path.write_text(json.dumps({'url':'https://edge.example.org','access_client_id':'test-id','access_client_secret':'test-secret'}))
     url, headers=endpoint(config_path=path)
-    assert url=='https://alivemap.aishtrex.com' and headers['CF-Access-Client-Secret']=='test-secret'
+    assert url=='https://edge.example.org' and headers['CF-Access-Client-Secret']=='test-secret'
     assert endpoint('http://127.0.0.1:18767',path)[1]=={}
     monkeypatch.setenv('ALIVEMAP_MEC_URL','https://alternate.example')
     assert endpoint(config_path=path)[0]=='https://alternate.example'
@@ -37,7 +37,7 @@ def test_https_client_verifies_certificates_and_does_not_follow_redirects(tmp_pa
             calls.append(kwargs)
             super().__init__(**kwargs)
     monkeypatch.setattr('laptop.playground_client.httpx.Client',Capture)
-    client=PlaygroundClient('https://alivemap.aishtrex.com','epoch','map',[0,0,1,1],[])
+    client=PlaygroundClient('https://edge.example.org','epoch','map',[0,0,1,1],[])
     client.close()
     assert calls[0]['verify'] is True and calls[0]['follow_redirects'] is False
     assert calls[0]['headers']['CF-Access-Client-Id']=='test-id'

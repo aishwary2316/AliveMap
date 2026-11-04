@@ -1,3 +1,2 @@
--r mec/baseline/requirements-observed.txt
+-r requirements-laptop.txt
 pytest==8.3.5
-httpx==0.28.1

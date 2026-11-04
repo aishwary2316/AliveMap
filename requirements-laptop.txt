@@ -1,4 +1,4 @@
--r requirements-dev.txt
+-r requirements-mec.txt
 eclipse-sumo==1.28.0
 sumo-data==1.28.0
 traci==1.28.0
@@ -8,3 +8,4 @@ shapely==2.1.2
 rasterio==1.4.3
 networkx==3.5
 pillow==11.3.0
+numpy==2.5.4

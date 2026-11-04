@@ -1,3 +1,7 @@
+> Historical/compatibility guide. For the maintained desktop workflow use
+> [the README](../README.md) and [workspace guide](workspace.md). Environment
+> observations and test totals below describe their original development stage.
+
 # See and control AliveMap
 
 From the project folder, double-click **Open AliveMap Lab.cmd**, or run:

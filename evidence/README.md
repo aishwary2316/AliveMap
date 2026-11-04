@@ -1,19 +1,25 @@
-# Verification evidence
+# Evidence index
 
-These records describe actual runs. Local tests and physical-MEC runs are separate.
+These checked-in artifacts describe historical runs, not current availability.
+The maintained interpretation is [results and limitations](../docs/results.md).
 
-The controller event logs contain only this POC's synthetic reports and routing
-decisions. Raw SSH inventories, access details and pre-existing MEC hazard contents
-are private and excluded. SUMO XML exports have local-path comments removed; raw
-original output remains in the ignored runs/ directory.
+| Directory | Scope |
+| --- | --- |
+| `deployment/` | Dated workspace, transport, rendering and recovery checks; each JSON has its own scope |
+| `maps/` | Geographic input provenance, build checks and earlier scenario comparisons |
+| `local-direct/`, `local-with-view/` | Earlier deterministic grid runs using a local baseline API |
+| `physical-mec-direct/`, `physical-mec-view-manual/` | Earlier application integration and manual semantic-view checks |
+| `playground/` | Earlier local and physical playground acceptance runs |
 
-The direct physical-MEC run used the existing API reached through authenticated
-SSH forwarding, following direct inspection of its source, schema, environment,
-process command and working directory. This is application-level integration
-evidence; it does not prove a 5G user-plane path or measure radio latency.
+The publication cleanup's full 88-pass run, source-only tests and fresh Delhi
+build are recorded in [publication-verification.json](publication-verification.json).
+The earlier repair campaign is
+[workflow-repair-verification.json](deployment/workflow-repair-verification.json).
+It reports a full run with one defect, followed by successful repair/reruns, not
+one uninterrupted all-pass run. Historical totals are not cumulative.
 
-The semantic extension is now deployed and healthy on the physical MEC. The
-`physical-mec-view-manual/` evidence records the GUI step and warning/closure/clear
-flow through that deployed view. It is separate from the complete arrival run
-against the original API; no complete physical arrival run through the view is
-claimed by the manual evidence.
+Synthetic reports and per-vehicle route decisions are not real-world incident
+detections. Physical API evidence does not establish a UE/gNB/UPF or RF path.
+Private credentials, raw inventories and new detailed administrative reports
+remain outside Git. Keep new raw runs under ignored `runs/`; publish only a
+reviewed, scoped result with methodology and limitations.

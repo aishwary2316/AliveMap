@@ -1,82 +1,118 @@
 # AliveMap
 
-5G MEC autonomous-routing proof of concept using SUMO, TraCI and an existing
-FastAPI/H3 service on a physical MEC server.
+An interactive autonomous-routing research playground built with SUMO, TraCI,
+OpenStreetMap and H3. Vehicles observe synthetic road incidents, report them to
+an edge service, receive relevant semantic updates, and independently plan routes.
 
-## Open the simulation
+**Status:** working research proof of concept, tested on Windows 11 / Python 3.12.
+Local simulation needs no MEC account, SSH tunnel or Cloudflare subscription.
+Physical-MEC integration is optional. Tower coverage is simulated; actual 5G
+radio and user-plane transport have not been verified.
 
-Double-click **Open AliveMap MEC.cmd** for your saved physical MEC connection.
-The compact dark workspace opens an editable example paused, with the inspector
-on the left, live map, playback timeline and a bottom tabbed console. Press Play
-or Space. Vehicles, incidents and towers are edited inside the same window.
-The log console includes event colours, search, filters and follow mode. Hover icons for hints; click a vehicle in the floating legend to follow/configure
-it, or Plus to add one. Origin/destination pins can be dragged onto real roads.
-See the [workspace guide](docs/workspace.md) for all controls and current limits.
+## Run locally
 
-**Open AliveMap Playground.cmd** selects the local backend in the same workspace.
-**Open AliveMap Maps.cmd** opens geographic comparisons. Select Delhi, Gujarat or
-Manipur (Mantripukhri / Mayangkhang). In Settings select Streets/Terrain and MEC.
-The bottom scenario icons run the seeded baseline or selected-incident case;
-New and Example open editable worlds. Backend changes apply on the next load.
-Legacy grid/lab launchers remain available for earlier experiments.
+Clone the repository and run from its root in PowerShell:
 
-## Current verified status
+```powershell
+git clone https://github.com/aishwary2316/AliveMap.git
+cd AliveMap
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-laptop.txt
+.\.venv\Scripts\python.exe -m geospatial.build delhi_urban --skip-rasters
+.\.venv\Scripts\python.exe -m laptop.map_launcher --playground
+```
 
-The independent authenticated endpoint is **https://alivemap.aishtrex.com**.
-No laptop SSH forwarding or Ubuntu jump VM is required for simulation. Its API,
-tunnel and baseline availability supervisor are enabled for boot; API crash
-recovery and saved incident recovery were tested without rebooting the host.
-The existing Cloudflare applications/configuration remain unchanged. Credentials
-stay in ignored private files. Browser requests without a key correctly get401.
-See the [deployment guide](docs/permanent-deployment.md).
+The roads-only build is the quickest first run. It downloads a real OSM extract
+and converts it into a directed SUMO network; it does not invent roads. For
+approximate elevation data, omit `--skip-rasters` (also attempts historical imagery).
+Downloads need Internet access and can take time. Large generated assets are
+excluded from Git: a fresh clone must build them first.
 
-Real SUMO runs on OSM-derived directed networks. Vehicles perceive synthetic
-anomalies and send reports to physical MEC; MEC computes H3 and tower-scoped
-semantic delivery; each vehicle independently computes its own route. The
-physical Delhi test passed 15 checks, including a driven detour, offline exclusion,
-multiple incidents, selected clearance and buffering outside tower coverage.
-See [HTTPS evidence](evidence/deployment/workspace-https-verification.json).
-Towers and application fan-out are simulated; RF/UE/UPF transport is not verified.
+Select **Local**, **Delhi Urban**, and **With incident**, then Run/Play. Two scouts
+independently encounter the anomaly. Their reports update the local MEC
+implementation; receiving vehicles compute new routes. Solid coloured lines show
+current routes; dashed segments show retired routes. Select **Without incident**
+and run again to compare the same initial trips. An impossible detour produces
+a safe stop rather than an invented route.
 
-The paced-telemetry controller measured 11.59x the old per-step-telemetry throughput
-in one comparable 40-simulated-second headless HTTPS sample. This is not a 100x
-playback or GPU benchmark. See [benchmark](evidence/deployment/playback-benchmark.json).
-The full local regression run passed 67 tests; workspace integration is additionally
-tested with real Tk and SUMO. [Editing details](docs/playground.md) and
-[map build runbook](docs/map-system.md) cover reproducible setup. Large map assets
-are excluded from Git and must be rebuilt on a different laptop.
+After installation, **Open AliveMap Playground.cmd** opens the same workspace.
+See the [workspace guide](docs/workspace.md) for editing and vehicle tracking.
 
-## Layout
+## Features
 
-- mec/baseline/: reviewed original API, observed schema and dependencies.
-- mec/semantic_view.py: additive read-only semantic API.
-- laptop/: active SUMO controller, real MEC client, grid and self-test.
-- tests/: contract, client, mapping, routing, revision and failure checks.
-- evidence/: separate local and physical-MEC run results.
-- docs/environment.md: verified environment and remaining discovery.
-- docs/mec-api-contract.md: real endpoints, payloads, H3 and update behavior.
-- scripts/mec-inventory.sh: read-only initial discovery.
-- experiments/standalone-poc/: previous experiment, retained for review.
-- .local/ (ignored): SSH access configuration and private discovery output.
+- Real directed OSM networks in Delhi, coastal Gujarat and two Manipur subregions.
+- Independent vehicle routes using road permissions, incident geometry and policy.
+- Editable roles, origin/destination pins, circle/rectangle/polygon anomalies.
+- H3 resolution 8/10 processing, report corroboration and scoped delivery.
+- Streets/terrain display, tracking, route history, clocks and speed controls.
+- Local backend and optional authenticated HTTPS MEC with persistent state.
 
-## Local baseline verification
+## How it works
 
-Use a separate Python environment (physical server Python: 3.10.12; local
-verification Python: 3.12). From the repository root:
+```mermaid
+flowchart LR
+    OSM[OSM extract] --> Build[Map builder / netconvert]
+    Build --> SUMO[SUMO on laptop]
+    SUMO --> Sensor[Vehicle observation]
+    Sensor -->|Report| MEC[MEC API: H3 / assessment / delivery]
+    MEC -->|Semantic facts| Agent[Independent vehicle planner]
+    Agent -->|Validated route| SUMO
+    SUMO --> UI[Desktop workspace]
+```
 
-    python -m pip install -r requirements-dev.txt
-    python -m pytest tests -q
+The edge service sends facts, not prescribed routes. Local mode executes the
+same API logic in-process. Remote mode uses authenticated HTTPS to your own
+service. See [architecture](docs/architecture.md) and [deployment](docs/permanent-deployment.md).
 
-The local suite exercises the observed application library versions. These tests
-do not contact the physical MEC. The separate physical-MEC run is recorded in evidence/.
+## Verification
 
-For the full laptop environment, install requirements-laptop.txt and run:
+The publication verification on **4 November 2026 passed all 88 tests in one
+full Windows run**. A source-only snapshot also passed 48 portable checks, and
+a freshly downloaded Delhi map passed the two-scout/incident-free comparison.
+Four real-map stories demonstrate independent reports and rerouting or a
+legitimate no-route stop. These synthetic results are not field incident
+detection or 5G latency results.
+See [results and limitations](docs/results.md).
 
-    python -m laptop.selftest
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pytest -m "not gui and not maps" -q
+.\.venv\Scripts\python.exe -m pytest -q
+```
 
-With the existing SSH forward kept open:
+The first test command excludes native windows and geographic integration.
+The full suite includes real SUMO and Tk; map-dependent tests skip until assets
+are built. See [testing](docs/testing.md).
 
-    python -m laptop.controller --mec-url http://127.0.0.1:18765 --mode physical-mec --output runs/my-run
+## Documentation
 
-This repository is public. Credentials, private access details and raw server
-output are excluded.
+| Guide | Contents |
+| --- | --- |
+| [Workspace](docs/workspace.md) | Controls and scenario editing |
+| [Maps](docs/map-system.md) | Build regions, provenance, terrain limits |
+| [Architecture](docs/architecture.md) | Processing, messages, module boundaries |
+| [MEC API](docs/playground-api.md) | Typed endpoints, reports and assessments |
+| [Results](docs/results.md) | Dated evidence and reproducible experiments |
+| [Deployment](docs/permanent-deployment.md) | Optional managed MEC integration |
+| [Contributing](CONTRIBUTING.md) | Development, tests, pull requests |
+| [Third-party notices](THIRD_PARTY_NOTICES.md) | Code and data attribution |
+| [Security](SECURITY.md) | Private configuration and reporting |
+| [Release preparation](docs/releasing.md) | Remaining publication decisions |
+
+Older grid controllers and semantic-view tools remain compatibility diagnostics.
+The superseded prototype is described in the [archive index](experiments/standalone-poc/README.md).
+
+## Limitations
+
+Incident geometry, sensor reach and circular tower coverage are simulated.
+Severity/confidence use POC rules, not calibrated safety models. DSM terrain is
+approximate; routing costs do not model flood dynamics. Public tiles and WAN
+services can be unavailable; playback speed is not a guaranteed real-time factor.
+Linux desktop support has not received the same native UI verification as Windows.
+
+## License status
+
+The project code license is **undecided**, at the maintainer's request. This is
+currently source available, pending an open-source license and confirmation of
+rights for the imported baseline snapshot. Map data and dependencies retain
+their separate licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).

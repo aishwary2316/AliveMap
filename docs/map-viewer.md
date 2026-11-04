@@ -1,3 +1,7 @@
+> Historical/compatibility guide. For the maintained desktop workflow use
+> [the README](../README.md) and [workspace guide](workspace.md). Environment
+> observations and test totals below describe their original development stage.
+
 > The current single-window controls are documented in [workspace.md](workspace.md).
 > The earlier presentation walkthrough below retains historical button labels;
 > the same seeded comparisons are now compact bottom controls with hover hints.

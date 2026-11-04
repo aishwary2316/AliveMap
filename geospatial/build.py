@@ -3,7 +3,6 @@ import argparse
 import hashlib
 import json
 import math
-import shutil
 import subprocess
 from pathlib import Path
 from uuid import uuid4
@@ -130,7 +129,7 @@ def spatial_index(net, graph):
     return index
 
 
-def build(package_id, reuse_probe=False, skip_rasters=False):
+def build(package_id, skip_rasters=False):
     definitions = json.loads((ROOT / "geospatial/definitions.json").read_text())
     definition = definitions[package_id]
     packages = ROOT / "map_packages"
@@ -141,14 +140,7 @@ def build(package_id, reuse_probe=False, skip_rasters=False):
     source, processed, sim = stage / "source", stage / "processed", stage / "sumo"
     bounds = definition["bounds_wgs84"]
     print(f"[{package_id}] acquiring OSM", flush=True)
-    if reuse_probe and package_id == "delhi_urban" and (ROOT / ".local/source-probes/roads.osm.xml").exists():
-        shutil.copyfile(ROOT / ".local/source-probes/roads.osm.xml", source / "roads.osm.xml")
-        provenance["roads"] = {"product": "OpenStreetMap road extract", "source_url": "https://overpass-api.de/api/interpreter",
-                               "query": acquisition.osm_query(bounds), "acquired_at": acquisition.utc(),
-                               "license": "ODbL-1.0", "attribution": "© OpenStreetMap contributors",
-                               "license_url": "https://www.openstreetmap.org/copyright"}
-    else:
-        provenance["roads"] = acquisition.roads(bounds, source / "roads.osm.xml")
+    provenance["roads"] = acquisition.roads(bounds, source / "roads.osm.xml")
     print(f"[{package_id}] converting real roads", flush=True)
     command = [binary("netconvert"), "--osm-files", str(source / "roads.osm.xml"),
                "--output-file", str(sim / "network.net.xml"), "--proj.utm", "--geometry.remove", "true",
@@ -256,10 +248,9 @@ def build(package_id, reuse_probe=False, skip_rasters=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("package", choices=list(json.loads((ROOT / "geospatial/definitions.json").read_text())))
-    parser.add_argument("--reuse-delhi-probe", action="store_true")
     parser.add_argument("--skip-rasters", action="store_true", help="Explicit degraded roads-only build; never reports complete")
     args = parser.parse_args()
-    build(args.package, args.reuse_delhi_probe, args.skip_rasters)
+    build(args.package, skip_rasters=args.skip_rasters)
 
 
 if __name__ == "__main__":

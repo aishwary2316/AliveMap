@@ -5,6 +5,7 @@ import hashlib
 import json
 import secrets
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -17,16 +18,22 @@ def read_private_json(path):
 def prepare():
     private = ROOT/'.local'
     inspected = read_private_json(private/'permanent-inspection.json')
+    expected = read_private_json(private/'alivemap-tunnel.json')
+    hostname = expected['hostname']
+    parsed = urlparse('https://' + hostname)
+    if (not hostname or parsed.hostname != hostname or parsed.netloc != hostname
+            or parsed.path or parsed.query or parsed.fragment):
+        raise ValueError('Tunnel hostname must be a plain DNS hostname')
+    target_url = 'https://' + hostname
     pending = private/'mec-endpoint.pending.json'
     if pending.exists():
         config = read_private_json(pending)
     else:
-        config = {'url': 'https://alivemap.aishtrex.com', 'api_key': secrets.token_urlsafe(48)}
+        config = {'url': target_url, 'api_key': secrets.token_urlsafe(48)}
         pending.write_text(json.dumps(config, indent=2)+'\n', encoding='utf-8')
     token = (private/'alivemap-tunnel.token').read_text(encoding='utf-8-sig').strip()
-    expected = read_private_json(private/'alivemap-tunnel.json')
     token_data = json.loads(base64.b64decode(token))
-    if token_data.get('t') != expected['tunnel_id'] or expected['hostname'] != 'alivemap.aishtrex.com':
+    if token_data.get('t') != expected['tunnel_id'] or config['url'] != target_url:
         raise ValueError('Credential does not belong to the newly approved AliveMap tunnel')
     sources = {'playground_api.py': (ROOT/'mec/playground_api.py').read_text(encoding='utf-8'),
                'baseline_watch.py': (ROOT/'mec/baseline_watch.py').read_text(encoding='utf-8')}
