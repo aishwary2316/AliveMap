@@ -92,6 +92,10 @@ are built. See [testing](docs/testing.md).
 | [Maps](docs/map-system.md) | Build regions, provenance, terrain limits |
 | [Architecture](docs/architecture.md) | Processing, messages, module boundaries |
 | [MEC API](docs/playground-api.md) | Typed endpoints, reports and assessments |
+| [Software reference](docs/software-reference.md) | Dependencies, data providers and source modules |
+| [Routing model](docs/routing-model.md) | Cost equations, profiles and incident effects |
+| [Configuration](docs/configuration.md) | Launchers, private settings, scenes and run files |
+| [Troubleshooting](docs/troubleshooting.md) | Startup, maps, reports, routing and connection problems |
 | [Results](docs/results.md) | Dated evidence and reproducible experiments |
 | [Deployment](docs/permanent-deployment.md) | Optional managed MEC integration |
 | [Contributing](CONTRIBUTING.md) | Development, tests, pull requests |
@@ -109,10 +113,3 @@ Severity/confidence use POC rules, not calibrated safety models. DSM terrain is
 approximate; routing costs do not model flood dynamics. Public tiles and WAN
 services can be unavailable; playback speed is not a guaranteed real-time factor.
 Linux desktop support has not received the same native UI verification as Windows.
-
-## License status
-
-The project code license is **undecided**, at the maintainer's request. This is
-currently source available, pending an open-source license and confirmation of
-rights for the imported baseline snapshot. Map data and dependencies retain
-their separate licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).

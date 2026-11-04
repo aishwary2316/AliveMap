@@ -1,18 +1,10 @@
 # Licensing and third-party materials
 
-## Project code
-
-The maintainer has deferred selection of a code license. No blanket open-source
-license is granted by this publication preparation. Before advertising an
-open-source release, choose a license and confirm permission to license all
-included code, particularly the imported `mec/baseline/` reference snapshot.
-Public repository visibility does not resolve that ownership question.
-
 ## Geographic data and tiles
 
 | Material | Attribution / terms |
 | --- | --- |
-| OSM roads and derived databases | © OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). Preserve attribution and applicable derivative-database/share-alike obligations. |
+| OSM roads and derived databases | Â© OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). Preserve attribution and applicable derivative-database/share-alike obligations. |
 | OSM raster street tiles | OpenStreetMap contributors; follow the separate [tile usage policy](https://operations.osmfoundation.org/policies/tiles/). Best-effort service, no bulk/offline prefetch. |
 | OpenTopoMap terrain tiles | OpenStreetMap contributors, SRTM, OpenTopoMap; see [provider terms](https://opentopomap.org/about). Retain the provider attribution and CC BY-SA terms. |
 | Copernicus DEM GLO-30 | Copernicus DEM public dataset; retain product provenance and the [product license notice](https://copernicus-dem-30m.s3.amazonaws.com/readme.html). A DSM, not surveyed bare-earth road grade. |

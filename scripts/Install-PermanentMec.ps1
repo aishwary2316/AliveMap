@@ -46,7 +46,7 @@ try {
     $taskInput | & ssh -T -F $SshConfig -o ConnectTimeout=60 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 $HostAlias $taskRemote |
         Tee-Object -FilePath (Join-Path $private 'permanent-install-result.json')
     if ($LASTEXITCODE -ne 0) { throw 'Installation failed. Read the error above; keep the original application windows open.' }
-    Write-Host 'PERMANENT_SERVICES_INSTALLED. Return to Codex for endpoint checks.' -ForegroundColor Green
+    Write-Host 'PERMANENT_SERVICES_INSTALLED. Verify authenticated endpoint health before running a scenario.' -ForegroundColor Green
 } finally {
     $taskSecureSudo.Dispose()
     Remove-Variable taskInput,taskBlob,taskProgram -ErrorAction SilentlyContinue

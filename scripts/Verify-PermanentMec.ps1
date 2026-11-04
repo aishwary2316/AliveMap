@@ -15,7 +15,7 @@ try {
     $taskInput | & ssh -T -F $SshConfig -o ConnectTimeout=60 -o ServerAliveInterval=15 $HostAlias "sudo -S -p '' /usr/bin/python3 -I -" |
         Tee-Object -FilePath (Join-Path $repoRoot '.local/permanent-recovery-result.json')
     if($LASTEXITCODE -ne 0){throw 'Recovery verification failed; inspect the error above.'}
-    Write-Host 'PERMANENT_RECOVERY_VERIFIED. Return to Codex.' -ForegroundColor Green
+    Write-Host 'PERMANENT_RECOVERY_VERIFIED. Review the verification output above.' -ForegroundColor Green
 } finally {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($taskPointer)
     $taskSecure.Dispose()

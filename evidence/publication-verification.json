@@ -60,7 +60,6 @@
   },
   "physical_service_contacted": false,
   "real_5g_path_verified": false,
-  "license_status": "Undecided at maintainer request",
   "notes": [
     "Full suite passed in one run; focused configuration checks also passed after packager changes.",
     "Two upstream dependency deprecation warnings remain; no environment upgrade was made.",

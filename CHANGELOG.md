@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Documentation reference
+
+- Added software/provider inventory, routing equations and profiles, configuration
+  reference, saved-scene semantics and troubleshooting instructions.
+- Replaced workstation-specific completion prompts with operator instructions.
+- Corrected the hosted dependency-cache inputs to match the requirement filenames.
+
 ### Publication preparation
 
 - Replaced session-specific setup instructions with a local-first quick start,
@@ -15,7 +22,7 @@
 - Made the deployment packager's hostname come from private operator configuration
   instead of a particular installation; retained token and hostname guards.
 - Excluded personal reports, screenshots, shortcuts and publication drafts from Git.
-- Documented third-party data attribution, security and the pending code-license decision.
+- Documented third-party data attribution and security guidance.
 
 ### Existing simulation
 

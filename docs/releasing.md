@@ -5,7 +5,7 @@ package or grant a code license. Before the first open-source release:
 
 1. Choose the project code license and confirm the right to license the imported
    baseline snapshot and contributions. Add the appropriate license text and
-   notices; update the README and contributing guide. This decision is pending.
+   notices; update the README and contributing guide. Licensing is maintained by the project owner.
 2. Review the exact release diff and repository history for secrets, personal
    files and infrastructure metadata. Pattern scanning is not a guarantee.
    If a real secret is discovered, rotate it and coordinate any history rewrite.
