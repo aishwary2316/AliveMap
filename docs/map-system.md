@@ -21,6 +21,9 @@ No WSL, Docker or separate GDAL installation is required by the Windows wheels.
 
 The exact footprints are in `geospatial/definitions.json`. Mayangkhang is a
 regional reference, not an assertion of surveyed permanent-campus boundaries.
+The automated setup uses the bundled, checksummed Delhi OSM snapshot by default;
+`-RefreshMaps` requests a live extract. Direct `geospatial.build` commands use
+live downloads unless supplied `--roads-snapshot assets/maps/delhi_urban.json`.
 OSM acquisition uses a bounded road/restriction query with source attribution.
 A failed road download aborts publication. Missing raster sources produce typed
 warnings and degraded status. A failed build retains its staging data and does

@@ -2,6 +2,7 @@ param(
     [string]$PythonExe = '',
     [switch]$AllMaps,
     [switch]$Terrain,
+    [switch]$RefreshMaps,
     [switch]$Dev,
     [switch]$NoLaunch,
     [switch]$SkipCheck
@@ -32,6 +33,7 @@ if (-not $taskPython) {
 $taskArguments = @('scripts/setup_local.py')
 if ($AllMaps) { $taskArguments += @('--maps', 'all') }
 if ($Terrain) { $taskArguments += '--terrain' }
+if ($RefreshMaps) { $taskArguments += '--refresh-maps' }
 if ($Dev) { $taskArguments += '--dev' }
 if ($SkipCheck) { $taskArguments += '--skip-check' }
 if (-not $NoLaunch) { $taskArguments += '--launch' }

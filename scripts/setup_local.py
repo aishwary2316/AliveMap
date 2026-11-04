@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--maps', nargs='+', choices=(*REGIONS, 'all'), default=['delhi_urban'])
     parser.add_argument('--terrain', action='store_true', help='Attempt DEM and historical imagery acquisition')
     parser.add_argument('--dev', action='store_true', help='Also install pytest for development')
+    parser.add_argument('--refresh-maps', action='store_true', help='Fetch new OSM extracts instead of reusing maps or bundled sources')
     parser.add_argument('--skip-check', action='store_true', help='Skip the actual SUMO/local API smoke test')
     parser.add_argument('--launch', action='store_true', help='Open the desktop after successful setup')
     args = parser.parse_args()
@@ -47,7 +48,8 @@ def main():
     regions = REGIONS if 'all' in args.maps else tuple(dict.fromkeys(args.maps))
     print('[3/4] Preparing real geographic packages', flush=True)
     for region in regions:
-        run([python, '-m', 'scripts.setup_maps', region, *(['--terrain'] if args.terrain else [])])
+        run([python, '-m', 'scripts.setup_maps', region, *(['--terrain'] if args.terrain else []),
+             *(['--refresh'] if args.refresh_maps else [])])
     print('[4/4] Checking independent reports, routing and the incident-free baseline', flush=True)
     if not args.skip_check:
         run([python, '-m', 'scripts.verify_local', '--maps', *regions])

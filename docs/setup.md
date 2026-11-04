@@ -2,7 +2,9 @@
 
 ## Windows: first installation
 
-1. Install Git and Python **3.12** from their official distributions. In the
+1. Install [Git for Windows](https://git-scm.com/downloads/win) and Python
+   **3.12** from the [official Windows downloads](https://www.python.org/downloads/windows/).
+   Choose a 3.12 installer rather than the newest major Python version. In the
    Python installer include the Python launcher and Tcl/Tk. Other installed
    Python versions can coexist; this project uses its own `.venv`.
 2. Open PowerShell in a writable working folder and clone:
@@ -14,9 +16,14 @@
    ```
 
 3. Wait for all four setup stages. The first run downloads Python packages and
-   a bounded OpenStreetMap road extract, then builds and validates a SUMO map.
+   converts the bundled real Delhi OpenStreetMap extract into a validated SUMO map.
    A real headless simulation checks independent reporting and rerouting before
-   the desktop opens. Public-source download times depend on connectivity.
+   the desktop opens. Package download times depend on connectivity.
+   Expect several hundred megabytes of package downloads; the pinned Windows
+   SUMO/data wheels alone are approximately 274 MB. Normal launches reuse them.
+   Delhi's source snapshot is included in Git and needs no Overpass request.
+   Other regions and explicit refreshes use public fallback services; an
+   individual source can take up to 100 seconds before timeout and fallback.
 4. In the workspace use **Local**, **Delhi Urban**, **With incident**, then Run.
    Follow Blue to inspect its current route. After both scouts report, inspect
    the corroboration log and dashed retired route. Choose **Without incident**
@@ -39,6 +46,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Setup.ps1 -AllMaps
 # Attempt DEM and historical imagery downloads too
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Setup.ps1 -AllMaps -Terrain
 
+# Fetch new live OSM road extracts instead of reusing maps/snapshots
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Setup.ps1 -RefreshMaps -NoLaunch
+
 # Include pytest for development
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Setup.ps1 -Dev -NoLaunch
 
@@ -59,7 +69,7 @@ py -3.12 scripts/setup_local.py --maps delhi_urban --launch
 ```
 
 Options are `--maps <one or more region IDs or all>`, `--terrain`, `--dev`,
-`--skip-check` and `--launch`. Omitting `--launch` performs a headless install/check.
+`--refresh-maps`, `--skip-check` and `--launch`. Omitting `--launch` performs a headless install/check.
 
 ## What setup writes
 
@@ -125,11 +135,13 @@ For an exact source revision, check out its commit before running setup. Record
 the source commit, requirement versions, region and map build ID with the result.
 The verification JSON records report times and the build actually used.
 
-A fresh OSM download may change road data and therefore the build ID, scenario
-anchors and timing. Exact historical geography requires a separately archived,
-attributable source/map package matching its manifest checksums. Git alone does
-not contain those large assets, and this project does not present changed source
-data as a bit-identical reproduction.
+The default Delhi setup uses the same attributable source snapshot shipped with
+the selected source commit. Its compressed and XML checksums are verified before
+conversion. This pins geographic input while routes are computed at runtime.
+SUMO/platform versions and recipe changes can affect build identity. Explicit
+refreshes and other regions can change road data, scenario anchors and timings.
+Exact historical packages still require matching their manifest checksums;
+changed source data is not a bit-identical reproduction.
 
 Physical MEC replication is a separate operator-controlled deployment described
 in [the deployment guide](permanent-deployment.md); laptop setup does not create

@@ -1,3 +1,4 @@
 * text=auto eol=lf
 # Preserve generated SUMO bytes: network IDs are content hashes.
 *.net.xml binary
+*.osm.xml.gz binary

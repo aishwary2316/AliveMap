@@ -1,6 +1,7 @@
 """Windows-native, versioned OSM/DEM/Sentinel -> actionable SUMO map packages."""
 import argparse
 import hashlib
+import gzip
 import json
 import math
 import subprocess
@@ -152,7 +153,28 @@ def spatial_index(net, graph):
     return index
 
 
-def build(package_id, skip_rasters=False):
+def snapshot_roads(metadata_file, package_id, bounds, destination):
+    metadata_file = Path(metadata_file)
+    metadata = json.loads(metadata_file.read_text(encoding='utf-8'))
+    if metadata['package_id'] != package_id or metadata['bounds_wgs84'] != bounds:
+        raise ValueError('Road snapshot belongs to another region or footprint')
+    archive = (metadata_file.parent / metadata['file']).resolve()
+    if not archive.is_relative_to(metadata_file.parent.resolve()):
+        raise ValueError('Unsafe road snapshot file')
+    packed = archive.read_bytes()
+    if hashlib.sha256(packed).hexdigest() != metadata['compressed_sha256']:
+        raise ValueError('Road snapshot archive checksum mismatch')
+    with gzip.open(archive, 'rb') as source:
+        data = source.read(50_000_001)
+    if len(data) > 50_000_000 or hashlib.sha256(data).hexdigest() != metadata['xml_sha256']:
+        raise ValueError('Road snapshot content checksum/size mismatch')
+    destination.write_bytes(data)
+    return {**metadata['source'], 'snapshot_sha256': metadata['xml_sha256'],
+            'original_download_sha256': metadata['original_download_sha256'],
+            'snapshot_transformation': metadata['transformation']}
+
+
+def build(package_id, skip_rasters=False, roads_snapshot=None):
     definitions = json.loads((ROOT / "geospatial/definitions.json").read_text())
     definition = definitions[package_id]
     packages = ROOT / "map_packages"
@@ -163,7 +185,11 @@ def build(package_id, skip_rasters=False):
     source, processed, sim = stage / "source", stage / "processed", stage / "sumo"
     bounds = definition["bounds_wgs84"]
     print(f"[{package_id}] acquiring OSM", flush=True)
-    provenance["roads"] = acquisition.roads(bounds, source / "roads.osm.xml")
+    if roads_snapshot:
+        print(f'[{package_id}] Using checksummed OSM source snapshot', flush=True)
+        provenance['roads'] = snapshot_roads(roads_snapshot, package_id, bounds, source/'roads.osm.xml')
+    else:
+        provenance["roads"] = acquisition.roads(bounds, source / "roads.osm.xml")
     print(f"[{package_id}] converting real roads", flush=True)
     command = [binary("netconvert"), "--osm-files", str(source / "roads.osm.xml"),
                "--output-file", str(sim / "network.net.xml"), "--proj.utm", "--geometry.remove", "true",
@@ -272,8 +298,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("package", choices=list(json.loads((ROOT / "geospatial/definitions.json").read_text())))
     parser.add_argument("--skip-rasters", action="store_true", help="Explicit degraded roads-only build; never reports complete")
+    parser.add_argument('--roads-snapshot', type=Path, help='Use an attributable checksummed source snapshot metadata file')
     args = parser.parse_args()
-    build(args.package, skip_rasters=args.skip_rasters)
+    build(args.package, skip_rasters=args.skip_rasters, roads_snapshot=args.roads_snapshot)
 
 
 if __name__ == "__main__":

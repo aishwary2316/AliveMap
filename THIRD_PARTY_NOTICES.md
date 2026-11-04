@@ -2,6 +2,10 @@
 
 ## Geographic data and tiles
 
+The checked-in [Delhi starter road snapshot](assets/maps/README.md) is a bounded
+OSM-derived database under ODbL 1.0. Its attribution, license URI, query and
+checksums travel with the data. It is not covered by project-code licensing.
+
 | Material | Attribution / terms |
 | --- | --- |
 | OSM roads and derived databases | Â© OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). Preserve attribution and applicable derivative-database/share-alike obligations. |

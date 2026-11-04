@@ -1,0 +1,25 @@
+{
+  "package_id": "delhi_urban",
+  "bounds_wgs84": [
+    77.225,
+    28.605,
+    77.287,
+    28.66
+  ],
+  "file": "delhi_urban.osm.xml.gz",
+  "compressed_sha256": "83ae353c6dbbd4ee619019350c687bfe8638e91765a8e4341146d189245714b5",
+  "xml_sha256": "97500b7b52c97e2a90af8a17616b98c567f043540af9387fc4ede0149549cf29",
+  "original_download_sha256": "81ec8eff51df152b3e545fdd9cd85d03c00e46e3c1249505b635200c76667b83",
+  "transformation": "Removed contributor/edit metadata attributes (uid, user, changeset, version, timestamp, visible). Retained road geometry, IDs, tags and turn restrictions.",
+  "source": {
+    "acquired_at": "2026-11-04T19:18:06.973772+00:00",
+    "attribution": "\u00a9 OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "license_url": "https://www.openstreetmap.org/copyright",
+    "product": "OpenStreetMap road extract",
+    "query": "[out:xml][timeout:90];(way[\"highway\"][\"area\"!=\"yes\"](28.605,77.225,28.66,77.287);relation[\"type\"=\"restriction\"](28.605,77.225,28.66,77.287););(._;>;);out meta;",
+    "source_url": "https://overpass-api.de/api/interpreter"
+  },
+  "license": "ODbL-1.0",
+  "license_url": "https://opendatacommons.org/licenses/odbl/1-0/"
+}

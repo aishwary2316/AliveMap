@@ -10,6 +10,8 @@
   step-by-step installation/replication guide.
 - Setup preserves existing environments, reports incomplete installations and
   keeps bootstrap temporary files within the ignored local workspace.
+- Bundled a small attributed Delhi OSM source snapshot so default setup does not
+  depend on live Overpass availability; explicit refresh remains available.
 
 ### Documentation reference
 

@@ -6,10 +6,10 @@ from geospatial.build import ROOT, build
 from routing_core.maps import validate_package
 
 
-def prepare(region, terrain=False):
+def prepare(region, terrain=False, refresh=False):
     folder = ROOT / 'map_packages' / region
     active = folder / 'active.json'
-    if active.exists():
+    if active.exists() and not refresh:
         selected = json.loads(active.read_text(encoding='utf-8'))['revision']
         path = (folder / selected).resolve()
         if not path.is_relative_to(folder.resolve()):
@@ -22,12 +22,15 @@ def prepare(region, terrain=False):
                 return path
         except (ValueError, OSError, KeyError) as exc:
             print(f'[{region}] Existing package needs building: {type(exc).__name__}', flush=True)
-    return build(region, skip_rasters=not terrain)
+    snapshot = ROOT / 'assets/maps' / (region + '.json')
+    return build(region, skip_rasters=not terrain,
+                 roads_snapshot=snapshot if snapshot.exists() and not refresh else None)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('region', choices=json.loads((ROOT/'geospatial/definitions.json').read_text()))
     parser.add_argument('--terrain', action='store_true')
+    parser.add_argument('--refresh', action='store_true')
     options = parser.parse_args()
-    prepare(options.region, options.terrain)
+    prepare(options.region, options.terrain, options.refresh)

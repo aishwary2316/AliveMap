@@ -1,15 +1,17 @@
 # AliveMap
 
+[![Portable regression checks](https://github.com/aishwary2316/AliveMap/actions/workflows/tests.yml/badge.svg)](https://github.com/aishwary2316/AliveMap/actions/workflows/tests.yml)
+
 An interactive autonomous-routing research playground built with SUMO, TraCI,
 OpenStreetMap and H3. Vehicles observe synthetic road incidents, report them to
 an edge service, receive relevant semantic updates, and independently plan routes.
 
-[Quick start](#run-locally) · [Setup guide](docs/setup.md) · [Workspace](docs/workspace.md) · [Results](docs/results.md)
+[Quick start](#run-locally) Â· [Setup guide](docs/setup.md) Â· [Workspace](docs/workspace.md) Â· [Results](docs/results.md)
 
 ![AliveMap desktop showing a real SUMO vehicle reroute, route overview and corroborated incident logs](docs/images/workspace.jpg)
 
 *An actual local Delhi run, paused after two independent scout reports and a
-receiver reroute. Map © OpenStreetMap contributors. [Image details](docs/images/README.md).*
+receiver reroute. Map Â© OpenStreetMap contributors. [Image details](docs/images/README.md).*
 
 **Status:** working research proof of concept, tested on Windows 11 / Python 3.12.
 Local simulation needs no MEC account, SSH tunnel or Cloudflare subscription.
@@ -33,8 +35,10 @@ and routing in actual SUMO, checks the same trips without an incident, then open
 the workspace. No admin privileges, credentials or physical MEC are needed.
 The execution-policy option applies only to this PowerShell process.
 
-First setup downloads packages and OSM data; allow several minutes and Internet
-access. Rerunning reuses the environment and validated map packages. It never
+First setup downloads packages; allow several minutes and Internet access.
+Delhi uses a bundled, checksummed real OSM snapshot, so its road build does not
+depend on a live map-data service. Rerunning reuses the environment and validated
+map packages. It never
 deletes an existing environment or overwrites remote services.
 
 | Setup | Command after cloning |
@@ -44,11 +48,14 @@ deletes an existing environment or overwrites remote services.
 | Include elevation/imagery acquisition | Add `-Terrain` |
 | Install without opening a window | Add `-NoLaunch` |
 | Development tools | Add `-Dev` |
+| Fetch newer roads instead of the snapshot | Add `-RefreshMaps` |
 
 The default roads-only package is explicitly marked degraded for raster data;
 the real road network and incident routing work. `-Terrain` attempts optional
 DEM/historical imagery downloads. Source outages are reported. Large generated
-assets stay outside Git. See [complete setup, Linux and recovery steps](docs/setup.md).
+assets stay outside Git; the small [Delhi source snapshot](assets/maps/README.md)
+is included with OSM attribution. Other regions and explicit refreshes need live
+road-data access. See [complete setup, Linux and recovery steps](docs/setup.md).
 
 Select **Local**, **Delhi Urban**, and **With incident**, then Run/Play. Two scouts
 independently encounter the anomaly. Their reports update the local MEC
